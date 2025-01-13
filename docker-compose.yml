@@ -1,14 +1,69 @@
 services:
-  stats-server:
+  stats-client:
+    build: stats-client
+    image: ewm-stats-client
+    container_name: ewm-stats-client
     ports:
       - "9090:9090"
+    depends_on:
+      - stats-server
+    environment:
+      - EWM_SERVER_URL=http://server:8080
+
+  stats-server:
+    build: stats-server
+    image: ewm-stats-server
+    container_name: ewm-stats-server
+    ports:
+      - "8080:8080"
+    depends_on:
+      - stats-db
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/svc_db
+      - SPRING_DATASOURCE_USERNAME=svc
+      - SPRING_DATASOURCE_PASSWORD=qwe123
 
   stats-db:
     image: postgres:16.1
-
-  ewm-service:
+    container_name: postgres
     ports:
-      - "8080:8080"
+      - "6541:5432"
+    volumes:
+      - ./volumes/postgres:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_DB=svc_db
+      - POSTGRES_USER=svc
+      - POSTGRES_PASSWORD=qwe123
+    healthcheck:
+      test: pg_isready -q -d $$POSTGRES_DB -U $$POSTGRES_USER
+      timeout: 5s
+      interval: 5s
+      retries: 10
 
-  ewm-db:
+  db-init:
     image: postgres:16.1
+    container_name: db-init
+    depends_on:
+      stats-db:
+        condition: service_healthy
+    entrypoint:
+      - bash
+      - -c
+      - |
+        set -e
+        psql postgresql://dbuser:12345@db:5432/svc_db -v ON_ERROR_STOP=1 <<-EOSQL
+          CREATE TABLE IF NOT EXISTS statistic (
+                      id serial PRIMARY KEY,
+                      app_name VARCHAR(255) NOT NULL,
+                      uri VARCHAR(512) NOT NULL,
+                      ip VARCHAR(100) NOT NULL,
+                      request_date TIMESTAMP,
+                      CONSTRAINT pk_statistic PRIMARY KEY (id)
+          );
+
+#  ewm-service:
+#    ports:
+#      - "8080:8080"
+#
+#  ewm-db:
+#    image: postgres:16.1
