@@ -13,13 +13,13 @@ import java.util.List;
 
 public class StatClient {
 
-    private final String BASE_URL = "http://localhost:9090";
+    private final String baseUrl = "http://localhost:9090";
 
     private RestClient restClient = RestClient.create();
 
     public void saveHit(EndpointHitDto hitDto) {
         restClient.post()
-                .uri(BASE_URL)
+                .uri(baseUrl)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(hitDto)
                 .retrieve()
@@ -28,7 +28,7 @@ public class StatClient {
     }
 
     public List<ViewStats> getStats(LocalDateTime start, LocalDateTime end, List<String> uris, Boolean unique) {
-        String uriWithParams = UriComponentsBuilder.fromHttpUrl(BASE_URL)
+        String uriWithParams = UriComponentsBuilder.fromHttpUrl(baseUrl)
                 .path("/stats")
                 .queryParam("start", start)
                 .queryParam("end", end)
