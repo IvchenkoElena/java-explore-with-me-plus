@@ -13,7 +13,7 @@ import java.util.List;
 
 public class StatClient {
 
-    private final static String BASE_URL = "http://localhost:9090";
+    private final String BASE_URL = "http://localhost:9090";
 
     private RestClient restClient = RestClient.create();
 
