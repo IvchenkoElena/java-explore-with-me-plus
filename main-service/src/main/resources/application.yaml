@@ -1,0 +1,18 @@
+server:
+  port: 8080
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        hibernate:
+          format_sql: true
+  sql:
+    init:
+      mode: always
+  datasource:
+    url: jdbc:postgresql://localhost:25432/ewm-db
+    driver-class-name: "org.postgresql.Driver"
+    username: "ewm-db"
+    password: "secret"
