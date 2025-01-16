@@ -1,34 +1,69 @@
 package ru.practicum.client;
 
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
+import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriComponentsBuilder;
 import ru.practicum.dto.EndpointHitDto;
 import ru.practicum.dto.ViewStats;
+import ru.practicum.exception.ClientException;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Component
 public class StatClient {
 
-    private final String baseUrl = "http://localhost:9090";
+    private final String http = "http";
 
-    private RestClient restClient = RestClient.create();
+    private String serverUri;
+    private RestClient restClient;
+
+    @Autowired
+    public StatClient(@Value("${stats-server.uri}") String serverUri) {
+        this.serverUri = serverUri;
+        this.restClient = RestClient.create();
+    }
+
 
     public void saveHit(EndpointHitDto hitDto) {
+        String uri = UriComponentsBuilder.newInstance()
+                .scheme(http)
+                .host(serverUri)
+                .port(9090)
+                .path("/hit")
+                .toUriString();
+
         restClient.post()
-                .uri(baseUrl)
+                .uri(uri)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(hitDto)
                 .retrieve()
+                .onStatus(HttpStatusCode::is4xxClientError, (request, response) -> {
+                    throw new ClientException(
+                            response.getStatusCode().value(),
+                            response.getBody().toString()
+                    );
+                })
+                .onStatus(HttpStatusCode::is5xxServerError, (request, response) -> {
+                    throw new ClientException(
+                            response.getStatusCode().value(),
+                            response.getBody().toString()
+                    );
+                })
                 .toBodilessEntity();
-
     }
 
     public List<ViewStats> getStats(LocalDateTime start, LocalDateTime end, List<String> uris, Boolean unique) {
-        String uriWithParams = UriComponentsBuilder.fromHttpUrl(baseUrl)
+        String uriWithParams = UriComponentsBuilder.newInstance()
+                .scheme(http)
+                .host(serverUri)
+                .port(9090)
                 .path("/stats")
                 .queryParam("start", start)
                 .queryParam("end", end)
@@ -38,6 +73,18 @@ public class StatClient {
 
         return restClient.get()
                 .uri(uriWithParams).retrieve()
+                .onStatus(HttpStatusCode::is4xxClientError, (request, response) -> {
+                    throw new ClientException(
+                            response.getStatusCode().value(),
+                            response.getBody().toString()
+                    );
+                })
+                .onStatus(HttpStatusCode::is5xxServerError, (request, response) -> {
+                    throw new ClientException(
+                            response.getStatusCode().value(),
+                            response.getBody().toString()
+                    );
+                })
                 .body(new ParameterizedTypeReference<>() {
                 });
     }

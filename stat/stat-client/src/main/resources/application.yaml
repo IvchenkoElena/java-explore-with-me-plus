@@ -1,0 +1,2 @@
+stats-server:
+  uri: "${STAT_SERVER_URI:stats-server}"
