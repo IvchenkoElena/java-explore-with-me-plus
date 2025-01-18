@@ -13,6 +13,7 @@ import ru.practicum.dto.EndpointHitDto;
 import ru.practicum.dto.ViewStats;
 import ru.practicum.exception.ClientException;
 
+import java.net.URI;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -25,7 +26,7 @@ public class StatClient {
     private RestClient restClient;
 
     @Autowired
-    public StatClient(@Value("${stats-server.uri}") String serverUri) {
+    public StatClient(@Value("${stats-server.uri:http://localhost:9090}") String serverUri) {
         this.serverUri = serverUri;
         this.restClient = RestClient.create();
     }
@@ -33,9 +34,7 @@ public class StatClient {
 
     public void saveHit(EndpointHitDto hitDto) {
         String uri = UriComponentsBuilder.newInstance()
-                .scheme(http)
-                .host(serverUri)
-                .port(9090)
+                .uri(URI.create(serverUri))
                 .path("/hit")
                 .toUriString();
 
@@ -61,9 +60,7 @@ public class StatClient {
 
     public List<ViewStats> getStats(LocalDateTime start, LocalDateTime end, List<String> uris, Boolean unique) {
         String uriWithParams = UriComponentsBuilder.newInstance()
-                .scheme(http)
-                .host(serverUri)
-                .port(9090)
+                .uri(URI.create(serverUri))
                 .path("/stats")
                 .queryParam("start", start)
                 .queryParam("end", end)

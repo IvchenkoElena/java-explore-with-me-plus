@@ -1,2 +1,4 @@
+server:
+  port: 1234
 stats-server:
-  uri: "${STAT_SERVER_URI:stats-server}"
+  uri: "${STAT_SERVER_URI:http://stats-server:9090}"
