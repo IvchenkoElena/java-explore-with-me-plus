@@ -15,13 +15,18 @@
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.jakarta.validation.jakarta.validation-api.version>3.0.2
+        </project.jakarta.validation.jakarta.validation-api.version>
+        <project.org.mapstruct.mapstruct.version>1.6.0</project.org.mapstruct.mapstruct.version>
+        <project.org.projectlombok.lombok-mapstruct-binding.version>0.2.0
+        </project.org.projectlombok.lombok-mapstruct-binding.version>
     </properties>
 
     <dependencies>
         <dependency>
             <groupId>ru.practicum</groupId>
             <artifactId>stat-dto</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
+            <version>${project.version}</version>
         </dependency>
         <!--Spring Boot-->
         <dependency>
@@ -40,7 +45,7 @@
         <dependency>
             <groupId>jakarta.validation</groupId>
             <artifactId>jakarta.validation-api</artifactId>
-            <version>3.0.2</version>
+            <version>${project.jakarta.validation.jakarta.validation-api.version}</version>
         </dependency>
 
         <dependency>
@@ -76,17 +81,17 @@
         <dependency>
             <groupId>org.mapstruct</groupId>
             <artifactId>mapstruct</artifactId>
-            <version>1.6.0</version>
+            <version>${project.org.mapstruct.mapstruct.version}</version>
         </dependency>
         <dependency>
             <groupId>org.mapstruct</groupId>
             <artifactId>mapstruct-processor</artifactId>
-            <version>1.6.0</version>
+            <version>${project.org.mapstruct.mapstruct.version}</version>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok-mapstruct-binding</artifactId>
-            <version>0.2.0</version>
+            <version>${project.org.projectlombok.lombok-mapstruct-binding.version}</version>
         </dependency>
     </dependencies>
 
