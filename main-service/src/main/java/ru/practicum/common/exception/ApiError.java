@@ -10,4 +10,5 @@ public class ApiError {
     private String reason;
     private String message;
     private String timestamp;
+    private String errors;
 }
