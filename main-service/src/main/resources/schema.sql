@@ -25,8 +25,8 @@ CREATE TABLE IF NOT EXISTS events (
     location_id BIGINT NOT NULL REFERENCES locations (id),
     paid BOOLEAN NOT NULL DEFAULT FALSE,
     participant_limit INTEGER NOT NULL DEFAULT 0,
-    request_moderation NOT NULL DEFAULT FALSE,
-    state VARCHAR(20) NOT NULL
+    request_moderation BOOLEAN NOT NULL DEFAULT FALSE,
+    state VARCHAR(20) NOT NULL,
     initiator_id BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     published_at TIMESTAMP WITHOUT TIME ZONE,
     created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL

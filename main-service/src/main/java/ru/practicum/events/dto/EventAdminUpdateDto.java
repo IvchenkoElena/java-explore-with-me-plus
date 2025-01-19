@@ -1,5 +1,6 @@
 package ru.practicum.events.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -22,6 +23,7 @@ public class EventAdminUpdateDto {
 
     private LocationDto location;
     @DateTimeFormat(pattern = DATE_PATTERN)
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime eventDate;
 
     private Boolean paid;
