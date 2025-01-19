@@ -64,6 +64,9 @@ public class EventServiceImpl implements EventService {
         User initiator = userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
         Event event = eventMapper.fromDto(eventCreateDto);
         event.setInitiator(initiator);
+        Category category = categoryRepository.findById(eventCreateDto.getCategory())
+                .orElseThrow(() -> new NotFoundException("Category not found"));
+        event.setCategory(category);
         locationRepository.save(event.getLocation());
         event.setCreatedOn(LocalDateTime.now());
         event.setState(EventState.PENDING);

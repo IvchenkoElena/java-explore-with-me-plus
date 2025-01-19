@@ -16,9 +16,11 @@ public interface EventMapper {
     @Mapping(target = "confirmedRequests", ignore = true)
     EventDto toDto(Event event);
 
-    @Mapping(target = "createdOn", ignore = true)
-    @Mapping(target = "publishedOn", ignore = true)
-    @Mapping(target = "state", ignore = true)
+    @Mapping(target = "category", ignore = true)
+    @Mapping(target = "id", ignore = true)
     @Mapping(target = "initiator", ignore = true)
+    @Mapping(target = "state", ignore = true)
+    @Mapping(target = "publishedOn", ignore = true)
+    @Mapping(target = "createdOn", ignore = true)
     Event fromDto(EventCreateDto eventDto);
 }
