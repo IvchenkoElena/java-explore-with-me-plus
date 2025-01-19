@@ -1,6 +1,7 @@
 package ru.practicum.common.exception;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -17,6 +18,13 @@ public class ErrorHandler {
     public ApiError handleNotFoundException(NotFoundException e) {
         log.warn("404 - NOT_FOUND");
         return new ApiError("NOT_FOUND", "entity not found", e.getMessage(), LocalDateTime.now().toString());
+    }
+
+    @ExceptionHandler({DataIntegrityViolationException.class})
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ApiError handleConflictError(RuntimeException e) {
+        log.warn("409 - CONFLICT_ERROR");
+        return new ApiError("CONFLICT_ERROR", "Conflict error", e.getMessage(), LocalDateTime.now().toString());
     }
 
     @ExceptionHandler
