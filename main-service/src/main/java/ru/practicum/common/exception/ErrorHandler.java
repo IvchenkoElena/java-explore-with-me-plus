@@ -30,7 +30,7 @@ public class ErrorHandler {
     }
 
     @ExceptionHandler({OperationForbiddenException.class})
-    @ResponseStatus(HttpStatus.FORBIDDEN)
+    @ResponseStatus(HttpStatus.CONFLICT)
     public ApiError handleForbiddenError(RuntimeException e) {
         log.warn("409 - FORBIDDEN");
         return new ApiError("FORBIDDEN", "For the requested operation the conditions are not met.", e.getMessage(), LocalDateTime.now().toString());
