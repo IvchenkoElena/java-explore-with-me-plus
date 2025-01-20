@@ -8,11 +8,7 @@ import ru.practicum.category.model.Category;
 import ru.practicum.category.repository.CategoryRepository;
 import ru.practicum.common.exception.NotFoundException;
 import ru.practicum.common.exception.OperationForbiddenException;
-import ru.practicum.events.dto.EventAdminUpdateDto;
-import ru.practicum.events.dto.EventCreateDto;
-import ru.practicum.events.dto.EventDto;
-import ru.practicum.events.dto.EventUpdateDto;
-import ru.practicum.events.dto.UpdateStateAction;
+import ru.practicum.events.dto.*;
 import ru.practicum.events.mapper.EventMapper;
 import ru.practicum.events.mapper.LocationMapper;
 import ru.practicum.events.model.Event;
@@ -43,8 +39,62 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
-    public EventDto adminEventUpdate(Long eventId, EventAdminUpdateDto eventDto) {
-        return null;
+    public EventDto adminEventUpdate(Long eventId, EventAdminUpdateDto eventUpdateDto) {
+        Event event = eventRepository.findById(eventId).orElseThrow(() -> new NotFoundException("Event not found"));
+        if (eventUpdateDto.getEventDate().isBefore(event.getCreatedOn().minusHours(1))) {
+            throw new OperationForbiddenException("Event date cannot be before created date");
+        }
+
+        if (eventUpdateDto.getTitle() != null) {
+            event.setTitle(eventUpdateDto.getTitle());
+        }
+        if (eventUpdateDto.getAnnotation() != null) {
+            event.setAnnotation(eventUpdateDto.getAnnotation());
+        }
+        if (eventUpdateDto.getDescription() != null) {
+            event.setDescription(eventUpdateDto.getDescription());
+        }
+        if (eventUpdateDto.getCategory() != null) {
+            Category category = categoryRepository.findById(eventUpdateDto.getCategory())
+                    .orElseThrow(() -> new NotFoundException("Category not found"));
+            event.setCategory(category);
+        }
+        if (eventUpdateDto.getEventDate() != null) {
+            if (eventUpdateDto.getEventDate().isBefore(LocalDateTime.now().plusHours(2))) {
+                throw new OperationForbiddenException(String.format("Field: eventDate. Error: должно содержать дату, которая еще не наступила. Value: %s", eventUpdateDto.getEventDate()));
+            }
+            event.setEventDate(eventUpdateDto.getEventDate());
+        }
+        if (eventUpdateDto.getLocation() != null) {
+            Location newLocation = locationRepository.save(locationMapper.toLocation(eventUpdateDto.getLocation()));
+            locationRepository.delete(event.getLocation());
+            event.setLocation(newLocation);
+        }
+        if (eventUpdateDto.getPaid() != null) {
+            event.setPaid(eventUpdateDto.getPaid());
+        }
+        if (eventUpdateDto.getRequestModeration() != null) {
+            event.setRequestModeration(eventUpdateDto.getRequestModeration());
+        }
+        if (eventUpdateDto.getParticipantLimit() != null) {
+            event.setParticipantLimit(eventUpdateDto.getParticipantLimit());
+        }
+        if (eventUpdateDto.getStateAction() != null) {
+            if (eventUpdateDto.getStateAction().equals(AdminUpdateStateAction.PUBLISH_EVENT) && !event.getState().equals(EventState.PENDING)) {
+                throw new OperationForbiddenException("Can't publish not pending event");
+            }
+            if (eventUpdateDto.getStateAction().equals(AdminUpdateStateAction.REJECT_EVENT) && !event.getState().equals(EventState.PENDING)) {
+                throw new OperationForbiddenException("Can't reject not pending event");
+            }
+            if (eventUpdateDto.getStateAction().equals(AdminUpdateStateAction.PUBLISH_EVENT)) {
+                event.setState(EventState.PUBLISHED);
+            }
+            if (eventUpdateDto.getStateAction().equals(AdminUpdateStateAction.REJECT_EVENT)) {
+                event.setState(EventState.CANCELLED);
+            }
+        }
+        event = eventRepository.save(event);
+        return addViewsAndConfirmedRequests(eventMapper.toDto(event));
     }
 
     @Override
@@ -122,7 +172,7 @@ public class EventServiceImpl implements EventService {
         if (eventUpdateDto.getParticipantLimit() != null) {
             event.setParticipantLimit(eventUpdateDto.getParticipantLimit());
         }
-        if (eventUpdateDto.getStateAction() != null) { //todo уточнить эту логику
+        if (eventUpdateDto.getStateAction() != null) {
             if (eventUpdateDto.getStateAction().equals(UpdateStateAction.SEND_TO_REVIEW)) {
                 event.setState(EventState.PENDING);
             }
