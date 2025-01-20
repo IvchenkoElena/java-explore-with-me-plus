@@ -1,6 +1,8 @@
 package ru.practicum.common.exception;
 
+import jakarta.validation.ValidationException;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.coyote.BadRequestException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -13,11 +15,25 @@ import java.time.LocalDateTime;
 @RestControllerAdvice
 public class ErrorHandler {
 
+    @ExceptionHandler(ValidationException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiError handleBadRequest(final BadRequestException e) {
+        log.warn("400 - BAD_REQUEST");
+        return new ApiError("BAD_REQUEST", "Incorrectly made request.", e.getMessage(), LocalDateTime.now().toString());
+    }
+
     @ExceptionHandler({NotFoundException.class})
     @ResponseStatus(HttpStatus.NOT_FOUND)
-    public ApiError handleNotFoundException(NotFoundException e) {
+    public ApiError handleNotFoundException(RuntimeException e) {
         log.warn("404 - NOT_FOUND");
-        return new ApiError("NOT_FOUND", "entity not found", e.getMessage(), LocalDateTime.now().toString());
+        return new ApiError("NOT_FOUND", "Entity not found", e.getMessage(), LocalDateTime.now().toString());
+    }
+
+    @ExceptionHandler({OperationForbiddenException.class})
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ApiError handleForbiddenError(RuntimeException e) {
+        log.warn("409 - FORBIDDEN");
+        return new ApiError("FORBIDDEN", "For the requested operation the conditions are not met.", e.getMessage(), LocalDateTime.now().toString());
     }
 
     @ExceptionHandler({DataIntegrityViolationException.class})
