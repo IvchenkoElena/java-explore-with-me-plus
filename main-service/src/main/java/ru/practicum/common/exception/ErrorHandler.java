@@ -2,7 +2,6 @@ package ru.practicum.common.exception;
 
 import jakarta.validation.ValidationException;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.coyote.BadRequestException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
