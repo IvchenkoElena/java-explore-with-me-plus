@@ -122,7 +122,7 @@ public class EventServiceImpl implements EventService {
         if (eventUpdateDto.getParticipantLimit() != null) {
             event.setParticipantLimit(eventUpdateDto.getParticipantLimit());
         }
-        if (eventUpdateDto.getStateAction() != null) {//todo уточнить эту логику
+        if (eventUpdateDto.getStateAction() != null) { //todo уточнить эту логику
             if (eventUpdateDto.getStateAction().equals(UpdateStateAction.SEND_TO_REVIEW)) {
                 event.setState(EventState.PENDING);
             }

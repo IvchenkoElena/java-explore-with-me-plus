@@ -36,7 +36,7 @@ public class ErrorHandler {
         return new ApiError("FORBIDDEN", "For the requested operation the conditions are not met.", e.getMessage(), LocalDateTime.now().toString());
     }
 
-    @ExceptionHandler({DataIntegrityViolationException.class})
+    @ExceptionHandler({DataIntegrityViolationException.class, NotEmptyException.class})
     @ResponseStatus(HttpStatus.CONFLICT)
     public ApiError handleConflictError(RuntimeException e) {
         log.warn("409 - CONFLICT_ERROR");
