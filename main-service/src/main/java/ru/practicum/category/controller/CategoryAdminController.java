@@ -38,6 +38,4 @@ public class CategoryAdminController {
                                       @Valid @RequestBody NewCategoryDto dto) {
         return categoryService.updateCategory(catId, dto);
     }
-
-
 }
