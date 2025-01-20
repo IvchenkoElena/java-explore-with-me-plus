@@ -1,6 +1,7 @@
 package ru.practicum.compilation.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.common.exception.NotFoundException;
@@ -12,6 +13,7 @@ import ru.practicum.compilation.model.Compilation;
 import ru.practicum.compilation.repository.CompilationRepository;
 import ru.practicum.events.repository.EventRepository;
 
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
@@ -53,5 +55,21 @@ public class CompilationServiceImpl implements CompilationService {
         }
         compilationRepository.save(compilationToUpdate);
         return mapper.toDto(compilationToUpdate);
+    }
+
+    @Override
+    public List<CompilationDto> getCompilations(Boolean pinned, int from, int size) {
+        PageRequest page = PageRequest.of(from, size);
+        if (pinned != null) {
+            return compilationRepository.findByPinned(pinned, page).stream().map(mapper::toDto).toList();
+        }
+        return compilationRepository.findAll(page).stream().map(mapper::toDto).toList();
+    }
+
+    @Override
+    public CompilationDto getCompilationById(Long compId) {
+        Compilation compilation = compilationRepository.findById(compId)
+                .orElseThrow(() -> new NotFoundException("Compilation with id=" + compId + " was not found"));
+        return mapper.toDto(compilation);
     }
 }
