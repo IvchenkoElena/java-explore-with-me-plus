@@ -34,15 +34,14 @@ public final class EventPredicates {
     }
 
     public static Predicate adminFilter(List<Long> users, List<Long> categories, List<EventState> states, LocalDateTime rangeStart, LocalDateTime rangeEnd) {
-        BooleanExpression predicate;
         final List<BooleanExpression> expressions = new ArrayList<BooleanExpression>();
-        if (users != null && !users.isEmpty()) {
+        if (users != null && !users.isEmpty() && users.getFirst() != 0) {
             expressions.add(initiatorIdIn(users));
         }
-        if (categories != null && !categories.isEmpty()) {
+        if (categories != null && !categories.isEmpty() && categories.getFirst() != 0) {
             expressions.add(categoriesIn(categories));
         }
-        if (states != null && !states.isEmpty()) {
+        if (states != null && !states.isEmpty() && states.getFirst() != null) {
             expressions.add(statesIn(states));
         }
         if (rangeStart != null) {
@@ -51,13 +50,16 @@ public final class EventPredicates {
         if (rangeEnd != null) {
             expressions.add(eventDateLoe(rangeEnd));
         }
-        BooleanExpression expression = expressions.getFirst();
-        if (expression == null) {
-            return null;
+        if (!expressions.isEmpty()) {
+            BooleanExpression expression = expressions.getFirst();
+            if (expression == null) {
+                return null;
+            }
+            for (int i = 1; i < expressions.size(); i++) {
+                expression = expression.and(expressions.get(i));
+            }
+            return expression;
         }
-        for (int i = 1; i < expressions.size(); i++) {
-            expression = expression.and(expressions.get(i));
-        }
-        return expression;
+        return null;
     }
 }

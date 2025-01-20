@@ -1,6 +1,7 @@
 package ru.practicum.events.service;
 
 import com.querydsl.core.types.Predicate;
+import jakarta.validation.ValidationException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -48,8 +49,8 @@ public class EventServiceImpl implements EventService {
     @Override
     public EventDto adminEventUpdate(Long eventId, EventAdminUpdateDto eventUpdateDto) {
         Event event = eventRepository.findById(eventId).orElseThrow(() -> new NotFoundException("Event not found"));
-        if (eventUpdateDto.getEventDate().isBefore(event.getCreatedOn().minusHours(1))) {
-            throw new OperationForbiddenException("Event date cannot be before created date");
+        if (eventUpdateDto.getEventDate() != null && eventUpdateDto.getEventDate().isBefore(event.getCreatedOn().minusHours(1))) {
+            throw new ValidationException("Event date cannot be before created date");
         }
 
         updateEventData(event, eventUpdateDto.getTitle(),
@@ -72,7 +73,7 @@ public class EventServiceImpl implements EventService {
                 event.setState(EventState.PUBLISHED);
             }
             if (eventUpdateDto.getStateAction().equals(AdminUpdateStateAction.REJECT_EVENT)) {
-                event.setState(EventState.CANCELLED);
+                event.setState(EventState.CANCELED);
             }
         }
         event = eventRepository.save(event);
@@ -96,13 +97,12 @@ public class EventServiceImpl implements EventService {
         }
         if (eventDate != null) {
             if (eventDate.isBefore(LocalDateTime.now().plusHours(2))) {
-                throw new OperationForbiddenException(String.format("Field: eventDate. Error: должно содержать дату, которая еще не наступила. Value: %s", eventDate));
+                throw new ValidationException(String.format("Field: eventDate. Error: должно содержать дату, которая еще не наступила. Value: %s", eventDate));
             }
             event.setEventDate(eventDate);
         }
         if (location != null) {
             Location newLocation = locationRepository.save(locationMapper.toLocation(location));
-            locationRepository.delete(event.getLocation());
             event.setLocation(newLocation);
         }
         if (paid != null) {
@@ -128,7 +128,7 @@ public class EventServiceImpl implements EventService {
     @Override
     public EventDto privateEventCreate(Long userId, EventCreateDto eventCreateDto) {
         if (eventCreateDto.getEventDate().isBefore(LocalDateTime.now().plusHours(2))) {
-            throw new OperationForbiddenException(String
+            throw new ValidationException(String
                     .format("Field: eventDate. Error: должно содержать дату, которая еще не наступила. Value: %s",
                             eventCreateDto.getEventDate()));
         }
@@ -173,7 +173,7 @@ public class EventServiceImpl implements EventService {
                 event.setState(EventState.PENDING);
             }
             if (eventUpdateDto.getStateAction().equals(UpdateStateAction.CANCEL_REVIEW)) {
-                event.setState(EventState.CANCELLED);
+                event.setState(EventState.CANCELED);
             }
         }
         event = eventRepository.save(event);

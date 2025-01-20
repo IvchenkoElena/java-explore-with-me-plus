@@ -15,9 +15,9 @@ import java.time.LocalDateTime;
 @RestControllerAdvice
 public class ErrorHandler {
 
-    @ExceptionHandler(ValidationException.class)
+    @ExceptionHandler({ValidationException.class})
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ApiError handleBadRequest(final BadRequestException e) {
+    public ApiError handleBadRequest(final RuntimeException e) {
         log.warn("400 - BAD_REQUEST");
         return new ApiError("BAD_REQUEST", "Incorrectly made request.", e.getMessage(), LocalDateTime.now().toString());
     }
