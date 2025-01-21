@@ -9,16 +9,19 @@ import ru.practicum.category.dto.NewCategoryDto;
 import ru.practicum.category.mapper.CategoryMapper;
 import ru.practicum.category.model.Category;
 import ru.practicum.category.repository.CategoryRepository;
+import ru.practicum.common.exception.NotEmptyException;
 import ru.practicum.common.exception.NotFoundException;
+import ru.practicum.events.repository.EventRepository;
 
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-@Transactional
+@Transactional(readOnly = true)
 public class CategoryServiceImpl implements CategoryService {
     private final CategoryRepository categoryRepository;
     private final CategoryMapper mapper;
+    private final EventRepository eventRepository;
 
     @Override
     @Transactional
@@ -33,7 +36,9 @@ public class CategoryServiceImpl implements CategoryService {
     public void deleteCategory(Long catId) {
         Category category = categoryRepository.findById(catId)
                 .orElseThrow(() -> new NotFoundException("Category with id=" + catId + " was not found"));
-        // обработать случай, если в категории есть события (conflict), когда допишем события
+        if (!eventRepository.findAllByCategoryId(catId).isEmpty()) {
+            throw new NotEmptyException("Category with id=" + catId + " is not empty");
+        }
         categoryRepository.deleteById(catId);
     }
 
@@ -43,7 +48,7 @@ public class CategoryServiceImpl implements CategoryService {
         Category categoryToUpdate = categoryRepository.findById(catId)
                 .orElseThrow(() -> new NotFoundException("Category with id=" + catId + " was not found"));
         categoryToUpdate.setName(dto.getName());
-        categoryRepository.save(categoryToUpdate); //неуникальное имя тут само будет обработано базой
+        categoryRepository.save(categoryToUpdate);
         return mapper.toDto(categoryToUpdate);
     }
 
