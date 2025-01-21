@@ -69,12 +69,12 @@ public class RequestServiceImpl implements RequestService {
                     throw new ParticipantLimitException(String.format("Participant limit for event with id %s id exceeded", eventId));
                 }
             }
-                request.setStatus(RequestStatus.PENDING);
-                request.setCreatedOn(LocalDateTime.now());
-                return requestMapper.requestToParticipationRequestDto(requestRepository.save(request));
+            request.setStatus(RequestStatus.PENDING);
+            request.setCreatedOn(LocalDateTime.now());
+            return requestMapper.requestToParticipationRequestDto(requestRepository.save(request));
         } else {
             Optional<ConfirmedRequests> current = confirmedRequestRepository.findByEventId(eventId);
-            if(current.isPresent()) {
+            if (current.isPresent()) {
                 Long confirmedRequestsAmount = current.get().getConfirmedRequestsAmount();
                 if (event.getParticipantLimit() >= confirmedRequestsAmount) {
                     throw new ParticipantLimitException(String.format("Participant limit for event with id %s id exceeded", eventId));
@@ -148,8 +148,8 @@ public class RequestServiceImpl implements RequestService {
             confirmedRequestsAmount = confirmedRequestRepository.getConfirmedRequestsByEventId(eventId).get().getConfirmedRequestsAmount();
         }
         if (confirmedRequestsAmount >= participantLimit) {
-                throw new ParticipantLimitException(String.format("Participant limit for event with id %s id exceeded", eventId));
-            }
+            throw new ParticipantLimitException(String.format("Participant limit for event with id %s id exceeded", eventId));
+        }
         for (int i = 0; i < requests.size(); i++) {
             Request currentRequest = requests.get(i);
             if (currentRequest.getStatus().equals(RequestStatus.PENDING)) {
