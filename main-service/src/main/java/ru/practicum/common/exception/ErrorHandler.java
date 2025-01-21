@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 @RestControllerAdvice
 public class ErrorHandler {
 
-    @ExceptionHandler({ValidationException.class})
+    @ExceptionHandler({ValidationException.class, OperationUnnecessaryException.class})
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiError handleBadRequest(final RuntimeException e) {
         log.warn("400 - BAD_REQUEST");
@@ -28,7 +28,8 @@ public class ErrorHandler {
         return new ApiError("NOT_FOUND", "Entity not found", e.getMessage(), LocalDateTime.now().toString());
     }
 
-    @ExceptionHandler({OperationForbiddenException.class})
+    @ExceptionHandler({OperationForbiddenException.class, ParticipantLimitException.class, InitiatorRequestException.class,
+            RepeatableUserRequestException.class, NotPublishEventException.class})
     @ResponseStatus(HttpStatus.CONFLICT)
     public ApiError handleForbiddenError(RuntimeException e) {
         log.warn("409 - FORBIDDEN");
