@@ -1,8 +1,11 @@
 package ru.practicum.request.service;
 
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import ru.practicum.client.StatClient;
 import ru.practicum.common.exception.*;
+import ru.practicum.dto.EndpointHitDto;
 import ru.practicum.events.model.Event;
 import ru.practicum.events.model.EventState;
 import ru.practicum.events.repository.EventRepository;
@@ -10,39 +13,38 @@ import ru.practicum.request.dto.EventRequestStatusUpdateRequest;
 import ru.practicum.request.dto.EventRequestStatusUpdateResult;
 import ru.practicum.request.dto.ParticipationRequestDto;
 import ru.practicum.request.mapper.RequestMapper;
-import ru.practicum.request.model.ConfirmedRequests;
 import ru.practicum.request.model.Request;
 import ru.practicum.request.model.RequestStatus;
-import ru.practicum.request.repository.ConfirmedRequestRepository;
 import ru.practicum.request.repository.RequestRepository;
 import ru.practicum.user.repository.UserRepository;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 public class RequestServiceImpl implements RequestService {
 
+    private static final String MAIN_SERVICE = "ewm-main-service";
+
     private final UserRepository userRepository;
     private final EventRepository eventRepository;
     private final RequestRepository requestRepository;
-    private final ConfirmedRequestRepository confirmedRequestRepository;
+    private final StatClient statClient;
 
     private final RequestMapper requestMapper;
 
     @Override
-    public List<ParticipationRequestDto> getUserRequests(Long userId) {
+    public List<ParticipationRequestDto> getUserRequests(Long userId, HttpServletRequest request) {
         userRepository.findById(userId).orElseThrow(() -> new NotFoundException(String.format("User with id %s not found",
                 userId)));
+        saveHit(request);
         return requestRepository.findByRequesterId(userId).stream()
                 .map(requestMapper::requestToParticipationRequestDto)
                 .toList();
     }
 
-    //todo: refactoring
     @Override
     public ParticipationRequestDto addParticipationRequest(Long userId, Long eventId) {
         if (eventRepository.findByIdAndInitiator_Id(eventId, userId).isPresent()) {
@@ -61,34 +63,21 @@ public class RequestServiceImpl implements RequestService {
         Request request = new Request();
         request.setRequester(userRepository.findById(userId).get());
         request.setEvent(event);
+
+        Long confirmedRequestsAmount = requestRepository.countRequestsByEventAndStatus(event, RequestStatus.CONFIRMED);
+        if (event.getParticipantLimit() <= confirmedRequestsAmount) {
+            throw new ParticipantLimitException(String.format("Participant limit for event with id %s id exceeded", eventId));
+        }
+
         if (event.isRequestModeration()) {
-            Optional<ConfirmedRequests> confirmedRequests = confirmedRequestRepository.getConfirmedRequestsByEventId(eventId);
-            if (confirmedRequests.isPresent()) {
-                Long confirmedRequestsAmount = confirmedRequests.get().getConfirmedRequestsAmount();
-                if (event.getParticipantLimit() >= confirmedRequestsAmount) {
-                    throw new ParticipantLimitException(String.format("Participant limit for event with id %s id exceeded", eventId));
-                }
-            }
             request.setStatus(RequestStatus.PENDING);
             request.setCreatedOn(LocalDateTime.now());
             return requestMapper.requestToParticipationRequestDto(requestRepository.save(request));
         } else {
-            Optional<ConfirmedRequests> current = confirmedRequestRepository.findByEventId(eventId);
-            if (current.isPresent()) {
-                Long confirmedRequestsAmount = current.get().getConfirmedRequestsAmount();
-                if (event.getParticipantLimit() >= confirmedRequestsAmount) {
-                    throw new ParticipantLimitException(String.format("Participant limit for event with id %s id exceeded", eventId));
-                }
-            } else {
-                request.setStatus(RequestStatus.CONFIRMED);
-                request.setCreatedOn(LocalDateTime.now());
-                ConfirmedRequests newConfirmRequest = new ConfirmedRequests();
-                newConfirmRequest.setEvent(event);
-                newConfirmRequest.setConfirmedRequestsAmount(1L);
-                confirmedRequestRepository.save(newConfirmRequest);
-            }
-            return requestMapper.requestToParticipationRequestDto(requestRepository.save(request));
+            request.setStatus(RequestStatus.CONFIRMED);
+            request.setCreatedOn(LocalDateTime.now());
         }
+        return requestMapper.requestToParticipationRequestDto(requestRepository.save(request));
     }
 
     @Override
@@ -102,21 +91,22 @@ public class RequestServiceImpl implements RequestService {
     }
 
     @Override
-    public List<ParticipationRequestDto> getEventParticipants(Long userId, Long eventId) {
+    public List<ParticipationRequestDto> getEventParticipants(Long userId, Long eventId, HttpServletRequest request) {
         List<Event> userEvents = eventRepository.findAllByInitiatorId(userId);
         Event event = userEvents.stream().filter(e -> e.getInitiator().getId().equals(userId)).findFirst()
                 .orElseThrow(() -> new ValidationException(String.format("User with id %s is not initiator of event with id %s",
                         userId, eventId)));
+        saveHit(request);
         return requestRepository.findByEventId(event.getId())
                 .stream()
                 .map(requestMapper::requestToParticipationRequestDto)
                 .toList();
     }
 
-    //todo: refactoring
     @Override
     public EventRequestStatusUpdateResult changeRequestStatus(Long userId, Long eventId,
-                                                              EventRequestStatusUpdateRequest eventStatusUpdate) {
+                                                              EventRequestStatusUpdateRequest eventStatusUpdate,
+                                                              HttpServletRequest request) {
         Event event = eventRepository.findByIdAndInitiator_Id(eventId, userId)
                 .orElseThrow(() -> new NotFoundException(String.format("Event with id %s not found " +
                         "or unavailable for user with id %s", eventId, userId)));
@@ -136,33 +126,21 @@ public class RequestServiceImpl implements RequestService {
         List<ParticipationRequestDto> confirmedRequests = new ArrayList<>();
         List<ParticipationRequestDto> rejectedRequests = new ArrayList<>();
 
-        Optional<ConfirmedRequests> eventConfirmedRequest = confirmedRequestRepository.getConfirmedRequestsByEventId(eventId);
         Long confirmedRequestsAmount;
-        if (eventConfirmedRequest.isPresent()) {
-            confirmedRequestsAmount = eventConfirmedRequest.get().getConfirmedRequestsAmount();
-        } else {
-            ConfirmedRequests newConfirmedRequest = new ConfirmedRequests();
-            newConfirmedRequest.setEvent(event);
-            newConfirmedRequest.setConfirmedRequestsAmount(0L);
-            confirmedRequestRepository.save(newConfirmedRequest);
-            confirmedRequestsAmount = confirmedRequestRepository.getConfirmedRequestsByEventId(eventId).get().getConfirmedRequestsAmount();
-        }
+        confirmedRequestsAmount = requestRepository.countRequestsByEventAndStatus(event, RequestStatus.CONFIRMED);
         if (confirmedRequestsAmount >= participantLimit) {
             throw new ParticipantLimitException(String.format("Participant limit for event with id %s id exceeded", eventId));
         }
         for (int i = 0; i < requests.size(); i++) {
             Request currentRequest = requests.get(i);
             if (currentRequest.getStatus().equals(RequestStatus.PENDING)) {
-                if (RequestStatus.from(eventStatusUpdate.getStatus()).equals(RequestStatus.CONFIRMED)) {
+                if (eventStatusUpdate.getStatus().equals(RequestStatus.CONFIRMED)) {
                     if (confirmedRequestsAmount <= participantLimit) {
                         currentRequest.setStatus(RequestStatus.CONFIRMED);
-                        confirmedRequestsAmount++;
-                        ConfirmedRequests current = confirmedRequestRepository.findByEventId(eventId).get();
-                        current.setConfirmedRequestsAmount(confirmedRequestsAmount);
-                        confirmedRequestRepository.save(current);
                         ParticipationRequestDto confirmed = requestMapper.requestToParticipationRequestDto(
                                 requestRepository.save(currentRequest));
                         confirmedRequests.add(confirmed);
+                        saveHit(request);
                     } else {
                         currentRequest.setStatus(RequestStatus.REJECTED);
                         ParticipationRequestDto rejected = requestMapper.requestToParticipationRequestDto(
@@ -170,7 +148,7 @@ public class RequestServiceImpl implements RequestService {
                         rejectedRequests.add(rejected);
                     }
                 } else {
-                    currentRequest.setStatus(RequestStatus.from(eventStatusUpdate.getStatus()));
+                    currentRequest.setStatus(eventStatusUpdate.getStatus());
                     ParticipationRequestDto rejected = requestMapper.requestToParticipationRequestDto(
                             requestRepository.save(currentRequest));
                     rejectedRequests.add(rejected);
@@ -181,6 +159,15 @@ public class RequestServiceImpl implements RequestService {
         result.setConfirmedRequests(confirmedRequests);
         result.setRejectedRequests(rejectedRequests);
         return result;
+    }
+
+    private void saveHit(HttpServletRequest request) {
+        EndpointHitDto endpointHitDto = new EndpointHitDto();
+        endpointHitDto.setApp(MAIN_SERVICE);
+        endpointHitDto.setUri(request.getRequestURI());
+        endpointHitDto.setIp(request.getRemoteAddr());
+        endpointHitDto.setTimestamp(LocalDateTime.now());
+        statClient.saveHit(endpointHitDto);
     }
 
 }

@@ -1,6 +1,7 @@
 package ru.practicum.request.dto;
 
 import lombok.Data;
+import ru.practicum.request.model.RequestStatus;
 
 import java.util.List;
 
@@ -9,6 +10,6 @@ public class EventRequestStatusUpdateRequest {
 
     private List<Long> requestIds;
 
-    private String status;
+    private RequestStatus status;
 
 }

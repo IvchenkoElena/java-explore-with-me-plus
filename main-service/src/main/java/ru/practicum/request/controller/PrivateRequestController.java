@@ -1,5 +1,6 @@
 package ru.practicum.request.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -24,8 +25,8 @@ public class PrivateRequestController {
      * @param userId id текущего пользователя
      */
     @GetMapping("/requests")
-    public List<ParticipationRequestDto> getUserRequests(@PathVariable Long userId) {
-        return requestService.getUserRequests(userId);
+    public List<ParticipationRequestDto> getUserRequests(@PathVariable Long userId, HttpServletRequest request) {
+        return requestService.getUserRequests(userId, request);
     }
 
     /**
@@ -67,8 +68,9 @@ public class PrivateRequestController {
      * @return Найденые запросы на участие в событии текущего пользователя.
      */
     @GetMapping("/events/{eventId}/requests")
-    public List<ParticipationRequestDto> getEventParticipants(@PathVariable Long userId, @PathVariable Long eventId) {
-        return requestService.getEventParticipants(userId, eventId);
+    public List<ParticipationRequestDto> getEventParticipants(@PathVariable Long userId, @PathVariable Long eventId,
+                                                              HttpServletRequest request) {
+        return requestService.getEventParticipants(userId, eventId, request);
     }
 
     /**
@@ -86,8 +88,9 @@ public class PrivateRequestController {
      */
     @PatchMapping("/events/{eventId}/requests")
     public EventRequestStatusUpdateResult changeRequestStatus(@PathVariable Long userId, @PathVariable Long eventId,
-                                                              @RequestBody EventRequestStatusUpdateRequest eventStatusUpdate) {
-        return requestService.changeRequestStatus(userId, eventId, eventStatusUpdate);
+                                                              @RequestBody EventRequestStatusUpdateRequest eventStatusUpdate,
+                                                              HttpServletRequest request) {
+        return requestService.changeRequestStatus(userId, eventId, eventStatusUpdate, request);
     }
 
 }
