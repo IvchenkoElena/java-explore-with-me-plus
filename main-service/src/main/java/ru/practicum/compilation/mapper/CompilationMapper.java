@@ -1,40 +1,19 @@
 package ru.practicum.compilation.mapper;
 
-import lombok.AccessLevel;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
-import ru.practicum.common.exception.NotFoundException;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 import ru.practicum.compilation.dto.CompilationDto;
-import ru.practicum.compilation.dto.NewCompilationDto;
 import ru.practicum.compilation.model.Compilation;
-import ru.practicum.events.mapper.EventMapper;
-import ru.practicum.events.repository.EventRepository;
+import ru.practicum.events.dto.EventShortDto;
+import ru.practicum.events.model.Event;
 
-import java.util.stream.Collectors;
 
-@Component
-@RequiredArgsConstructor(access = AccessLevel.PRIVATE)
-public final class CompilationMapper {
-    private final EventRepository eventRepository;
-    private final EventMapper eventMapper;
+@Mapper(componentModel = "spring")
+public interface CompilationMapper {
 
-    public Compilation toCompilation(NewCompilationDto dto) {
-        Compilation compilation = new Compilation();
-        compilation.setPinned(dto.isPinned());
-        compilation.setTitle(dto.getTitle());
-        if (dto.getEvents() != null) {
-            compilation.setEvents(dto.getEvents().stream().map(i -> eventRepository.findById(i)
-                    .orElseThrow(() -> new NotFoundException(String.format("Event with id %s not found", i)))).collect(Collectors.toSet()));
-        }
-        return compilation;
-    }
+    @Mapping(target = "events", expression = "java(compilation.getEvents().stream().map(this::toEventShortDto).toList())")
+    CompilationDto toDto(Compilation compilation);
 
-    public CompilationDto toDto(Compilation compilation) {
-        CompilationDto dto = new CompilationDto();
-        dto.setId(compilation.getId());
-        dto.setPinned(compilation.isPinned());
-        dto.setTitle(compilation.getTitle());
-        dto.setEvents(compilation.getEvents().stream().map(eventMapper::toEventShortDto).toList());
-        return dto;
-    }
+    @Mapping(target = "eventDate", dateFormat = "yyyy-MM-dd HH:mm:ss")
+    EventShortDto toEventShortDto(Event event); // в предыдущем методе нужен был доступ к этому методу. не придумала никак, кроме как вынести этот метод прямо сюда
 }

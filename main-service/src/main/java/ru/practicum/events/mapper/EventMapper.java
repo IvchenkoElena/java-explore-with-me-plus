@@ -4,7 +4,6 @@ import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import ru.practicum.events.dto.EventCreateDto;
 import ru.practicum.events.dto.EventDto;
-import ru.practicum.events.dto.EventShortDto;
 import ru.practicum.events.model.Event;
 
 @Mapper(componentModel = "spring")
@@ -24,7 +23,4 @@ public interface EventMapper {
     @Mapping(target = "publishedOn", ignore = true)
     @Mapping(target = "createdOn", ignore = true)
     Event fromDto(EventCreateDto eventDto);
-
-    @Mapping(target = "eventDate", dateFormat = "yyyy-MM-dd HH:mm:ss")
-    EventShortDto toEventShortDto(Event event);
 }

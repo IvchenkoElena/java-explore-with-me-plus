@@ -27,7 +27,13 @@ public class CompilationServiceImpl implements CompilationService {
     @Override
     @Transactional
     public CompilationDto saveCompilation(NewCompilationDto dto) {
-        Compilation compilation = mapper.toCompilation(dto);
+        Compilation compilation = new Compilation();
+        compilation.setPinned(dto.isPinned());
+        compilation.setTitle(dto.getTitle());
+        if (dto.getEvents() != null) {
+            compilation.setEvents(dto.getEvents().stream().map(i -> eventRepository.findById(i)
+                    .orElseThrow(() -> new NotFoundException(String.format("Event with id %s not found", i)))).collect(Collectors.toSet()));
+        }
         compilationRepository.save(compilation);
         return mapper.toDto(compilation);
     }
@@ -45,7 +51,7 @@ public class CompilationServiceImpl implements CompilationService {
     public CompilationDto updateCompilation(Long compId, UpdateCompilationRequest dto) {
         Compilation compilationToUpdate = compilationRepository.findById(compId)
                 .orElseThrow(() -> new NotFoundException("Compilation with id=" + compId + " was not found"));
-        compilationToUpdate.setPinned(dto.isPinned()); // не понимаю, почему не получается вызвать dto.getPinned
+        compilationToUpdate.setPinned(dto.isPinned());
         if (dto.getTitle() != null) {
             compilationToUpdate.setTitle(dto.getTitle());
         }
