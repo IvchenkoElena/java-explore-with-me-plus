@@ -1,6 +1,7 @@
 package ru.practicum.events.service;
 
 import com.querydsl.core.types.Predicate;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ValidationException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -8,32 +9,45 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import ru.practicum.category.model.Category;
 import ru.practicum.category.repository.CategoryRepository;
+import ru.practicum.client.StatClient;
 import ru.practicum.common.exception.NotFoundException;
 import ru.practicum.common.exception.OperationForbiddenException;
+import ru.practicum.dto.EndpointHitDto;
+import ru.practicum.dto.ViewStats;
 import ru.practicum.events.dto.*;
 import ru.practicum.events.mapper.EventMapper;
 import ru.practicum.events.mapper.LocationMapper;
 import ru.practicum.events.model.Event;
+import ru.practicum.events.model.EventSort;
 import ru.practicum.events.model.EventState;
 import ru.practicum.events.model.Location;
 import ru.practicum.events.predicates.EventPredicates;
 import ru.practicum.events.repository.EventRepository;
 import ru.practicum.events.repository.LocationRepository;
+import ru.practicum.request.model.RequestStatus;
+import ru.practicum.request.repository.RequestRepository;
 import ru.practicum.user.model.User;
 import ru.practicum.user.repository.UserRepository;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class EventServiceImpl implements EventService {
+
+    private static final String MAIN_SERVICE = "ewm-main-service";
+
     private final EventRepository eventRepository;
     private final LocationRepository locationRepository;
     private final CategoryRepository categoryRepository;
     private final UserRepository userRepository;
+    private final RequestRepository requestRepository;
     private final EventMapper eventMapper;
     private final LocationMapper locationMapper;
+    private final StatClient statClient;
 
     @Override
     public List<EventDto> adminEventsSearch(List<Long> users, List<Long> categories, List<EventState> states, LocalDateTime rangeStart, LocalDateTime rangeEnd, int from, int size) {
@@ -79,6 +93,62 @@ public class EventServiceImpl implements EventService {
         event = eventRepository.save(event);
         return addViewsAndConfirmedRequests(eventMapper.toDto(event));
     }
+
+    @Override
+    public List<EventShortDto> getEvents(String text, EventSort sort, Integer from, Integer size, List<Long> categories, String rangeStart,
+                                         String rangeEnd, Boolean paid, Boolean onlyAvailable, HttpServletRequest request) {
+
+        Pageable pageable = null;
+        if (from != null && size != null) {
+            pageable = PageRequest.of(from, size);
+        }
+
+        Predicate predicate = EventPredicates.publicFilter(text, categories, rangeStart, rangeEnd, paid);
+
+        List<Event> filteredEvents = new ArrayList<>();
+        if (pageable != null && predicate != null) {
+            filteredEvents = eventRepository.findAll(predicate, pageable).stream().toList();
+        } else if (predicate != null) {
+            Iterable<Event> iterableEvent = eventRepository.findAll(predicate);
+            for (Event event : iterableEvent) {
+                filteredEvents.add(event);
+            }
+        } else if (pageable != null) {
+            filteredEvents = eventRepository.findAll(pageable).toList();
+        }
+
+        List<EventShortDto> available = filteredEvents
+                .stream()
+                .filter(this::isEventAvailable)
+                .map(eventMapper::toEventShortDto)
+                .peek(this::addViewsAndConfirmedRequests).toList();
+
+        if (sort != null) {
+            switch (sort) {
+                case EVENT_DATE ->
+                        available.stream().sorted(Comparator.comparing(EventShortDto::getEventDate)).toList();
+                case VIEWS -> available.stream().sorted(Comparator.comparing(EventShortDto::getViews)).toList();
+            }
+        }
+
+        saveHit(request);
+        return available;
+
+    }
+
+
+    /*
+     * Получение подробной информации об опубликованном событии по его идентификатору.
+     * Cобытие должно быть опубликовано.
+     * Информация о событии должна включать в себя количество просмотров и количество подтвержденных запросов.
+     * Информация о том, что по эндпоинту был осуществлен и обработан запрос, сохраняется в сервисе статистики.
+     * @param id id события
+     */
+    @Override
+    public EventDto getEvent(Long id, HttpServletRequest request) {
+        return null;
+    }
+
 
     private void updateEventData(Event event, String title, String annotation, String description, Long categoryId, LocalDateTime eventDate, LocationDto location, Boolean paid, Boolean requestModeration, Integer participantLimit) {
         if (title != null) {
@@ -182,7 +252,30 @@ public class EventServiceImpl implements EventService {
 
     private EventDto addViewsAndConfirmedRequests(EventDto eventDto) {
         //todo добавить загрузку views
-        //todo добавить запрос к requests о количестве утвержденных
+        eventDto.setConfirmedRequests(requestRepository.countRequestsByEventAndStatus(eventRepository.findById(
+                eventDto.getId()).get(), RequestStatus.CONFIRMED));
         return eventDto;
+    }
+
+    private EventShortDto addViewsAndConfirmedRequests(EventShortDto eventShortDto) {
+        //todo добавить загрузку views
+        //ViewStats view = statClient.getStats()
+        eventShortDto.setConfirmedRequests(requestRepository.countRequestsByEventAndStatus(eventRepository.findById(
+                eventShortDto.getId()).get(), RequestStatus.CONFIRMED));
+        return eventShortDto;
+    }
+
+    private boolean isEventAvailable(Event event) {
+        Long confirmedRequestsAmount = requestRepository.countRequestsByEventAndStatus(event, RequestStatus.CONFIRMED);
+        return event.getParticipantLimit() > confirmedRequestsAmount;
+    }
+
+    private void saveHit(HttpServletRequest request) {
+        EndpointHitDto endpointHitDto = new EndpointHitDto();
+        endpointHitDto.setApp(MAIN_SERVICE);
+        endpointHitDto.setUri(request.getRequestURI());
+        endpointHitDto.setIp(request.getRemoteAddr());
+        endpointHitDto.setTimestamp(LocalDateTime.now());
+        statClient.saveHit(endpointHitDto);
     }
 }
