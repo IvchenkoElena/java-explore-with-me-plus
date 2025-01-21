@@ -18,6 +18,7 @@
         <project.org.mapstruct.mapstruct.version>1.6.0</project.org.mapstruct.mapstruct.version>
         <project.org.projectlombok.lombok-mapstruct-binding.version>0.2.0
         </project.org.projectlombok.lombok-mapstruct-binding.version>
+        <project.querydsl>5.1.0</project.querydsl>
     </properties>
 
     <dependencies>
@@ -47,6 +48,12 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.querydsl</groupId>
+            <artifactId>querydsl-jpa</artifactId>
+            <classifier>jakarta</classifier>
+            <version>${project.querydsl}</version>
         </dependency>
 
         <!--Database-->
@@ -95,6 +102,30 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>com.mysema.maven</groupId>
+                <artifactId>apt-maven-plugin</artifactId>
+                <version>1.1.3</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>process</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>target/generated-sources/java</outputDirectory>
+                            <processor>com.querydsl.apt.jpa.JPAAnnotationProcessor</processor>
+                        </configuration>
+                    </execution>
+                </executions>
+                <dependencies>
+                    <dependency>
+                        <groupId>com.querydsl</groupId>
+                        <artifactId>querydsl-apt</artifactId>
+                        <classifier>jakarta</classifier>
+                        <version>${project.querydsl}</version>
+                    </dependency>
+                </dependencies>
             </plugin>
         </plugins>
     </build>

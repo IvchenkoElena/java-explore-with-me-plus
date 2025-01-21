@@ -34,8 +34,8 @@ public class AdminEventController {
             @RequestParam(required = false) List<EventState> states,
             @RequestParam(required = false) @DateTimeFormat(pattern = DATE_PATTERN) LocalDateTime rangeStart,
             @RequestParam(required = false) @DateTimeFormat(pattern = DATE_PATTERN) LocalDateTime rangeEnd,
-            @RequestParam(defaultValue = "0") @PositiveOrZero int from,
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(name = "from", required = false, defaultValue = "0") @PositiveOrZero int from,
+            @RequestParam(name = "size", required = false, defaultValue = "10") int size
     ) {
         return eventService.adminEventsSearch(users, categories, states, rangeStart, rangeEnd, from, size);
     }
