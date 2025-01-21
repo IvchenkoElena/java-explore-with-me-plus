@@ -27,4 +27,5 @@ public interface EventMapper {
 
     @Mapping(target = "eventDate", dateFormat = "yyyy-MM-dd HH:mm:ss")
     EventShortDto toEventShortDto(Event event);
+    // to-do дописать логику получения полей views и confirmedRequests
 }
