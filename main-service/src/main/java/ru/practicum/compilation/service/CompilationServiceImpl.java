@@ -8,7 +8,7 @@ import ru.practicum.common.exception.NotFoundException;
 import ru.practicum.compilation.dto.CompilationDto;
 import ru.practicum.compilation.dto.NewCompilationDto;
 import ru.practicum.compilation.dto.UpdateCompilationRequest;
-import ru.practicum.compilation.mapper.CompilationMapper;
+import ru.practicum.compilation.mapper.CompilationMapperImpl;
 import ru.practicum.compilation.model.Compilation;
 import ru.practicum.compilation.repository.CompilationRepository;
 import ru.practicum.events.repository.EventRepository;
@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class CompilationServiceImpl implements CompilationService {
     private final CompilationRepository compilationRepository;
-    private final CompilationMapper mapper;
+    private final CompilationMapperImpl mapper;
     private final EventRepository eventRepository;
 
     @Override
