@@ -61,8 +61,14 @@ public class RequestServiceImpl implements RequestService {
         request.setEvent(event);
 
         Long confirmedRequestsAmount = requestRepository.countRequestsByEventAndStatus(event, RequestStatus.CONFIRMED);
-        if (event.getParticipantLimit() <= confirmedRequestsAmount) {
+        if (event.getParticipantLimit() <= confirmedRequestsAmount && event.getParticipantLimit() != 0) {
             throw new ParticipantLimitException(String.format("Participant limit for event with id %s id exceeded", eventId));
+        }
+
+        if (event.getParticipantLimit() == 0) {
+            request.setStatus(RequestStatus.CONFIRMED);
+            request.setCreatedOn(LocalDateTime.now());
+            return requestMapper.requestToParticipationRequestDto(requestRepository.save(request));
         }
 
         if (event.isRequestModeration()) {

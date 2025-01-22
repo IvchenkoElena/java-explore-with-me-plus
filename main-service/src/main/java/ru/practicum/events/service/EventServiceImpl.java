@@ -30,6 +30,7 @@ import ru.practicum.user.model.User;
 import ru.practicum.user.repository.UserRepository;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -39,6 +40,8 @@ import java.util.List;
 public class EventServiceImpl implements EventService {
 
     private static final String MAIN_SERVICE = "ewm-main-service";
+
+    public static final String DATE_PATTERN = "yyyy-MM-dd HH:mm:ss";
 
     private final EventRepository eventRepository;
     private final LocationRepository locationRepository;
@@ -98,12 +101,23 @@ public class EventServiceImpl implements EventService {
     public List<EventShortDto> getEvents(String text, EventSort sort, Integer from, Integer size, List<Long> categories, String rangeStart,
                                          String rangeEnd, Boolean paid, Boolean onlyAvailable, HttpServletRequest request) {
 
+        LocalDateTime start = null;
+        LocalDateTime end = null;
+        if (rangeStart != null && rangeEnd != null) {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern(DATE_PATTERN);
+            start = LocalDateTime.parse(rangeStart, formatter);
+            end = LocalDateTime.parse(rangeEnd, formatter);
+            if (start.isAfter(end)) {
+                throw new ValidationException("Start date can not be after end date");
+            }
+        }
+
         Pageable pageable = null;
         if (from != null && size != null) {
             pageable = PageRequest.of(from, size);
         }
 
-        Predicate predicate = EventPredicates.publicFilter(text, categories, rangeStart, rangeEnd, paid);
+        Predicate predicate = EventPredicates.publicFilter(text, categories, start, end, paid);
 
         List<Event> filteredEvents = new ArrayList<>();
         if (pageable != null && predicate != null) {
@@ -136,17 +150,12 @@ public class EventServiceImpl implements EventService {
 
     }
 
-
-    /*
-     * Получение подробной информации об опубликованном событии по его идентификатору.
-     * Cобытие должно быть опубликовано.
-     * Информация о событии должна включать в себя количество просмотров и количество подтвержденных запросов.
-     * Информация о том, что по эндпоинту был осуществлен и обработан запрос, сохраняется в сервисе статистики.
-     * @param id id события
-     */
     @Override
-    public EventDto getEvent(Long id, HttpServletRequest request) {
-        return null;
+    public EventDto getEvent(Long eventId, HttpServletRequest request) {
+        Event event = eventRepository.findByIdAndState(eventId, EventState.PUBLISHED)
+                .orElseThrow(() -> new NotFoundException(String.format("Event with id %s not found", eventId)));
+        saveHit(request);
+        return addViewsAndConfirmedRequests(eventMapper.toDto(event));
     }
 
 
@@ -251,17 +260,28 @@ public class EventServiceImpl implements EventService {
     }
 
     private EventDto addViewsAndConfirmedRequests(EventDto eventDto) {
-        //todo добавить загрузку views
+        List<String> gettingUris = new ArrayList<>();
+        gettingUris.add("/events/" + eventDto.getId());
+        Long views = statClient.getStats(LocalDateTime.now().minusYears(1), LocalDateTime.now(), gettingUris, true)
+                .stream().map(ViewStats::getHits).reduce(0L, Long::sum);
+        eventDto.setViews(views);
+
         eventDto.setConfirmedRequests(requestRepository.countRequestsByEventAndStatus(eventRepository.findById(
                 eventDto.getId()).get(), RequestStatus.CONFIRMED));
+
         return eventDto;
     }
 
     private EventShortDto addViewsAndConfirmedRequests(EventShortDto eventShortDto) {
-        //todo добавить загрузку views
-        //ViewStats view = statClient.getStats()
+        List<String> gettingUris = new ArrayList<>();
+        gettingUris.add("/events/" + eventShortDto.getId());
+        Long views = statClient.getStats(LocalDateTime.now().minusYears(1), LocalDateTime.now(), gettingUris, false)
+                .stream().map(ViewStats::getHits).reduce(0L, Long::sum);
+        eventShortDto.setViews(views);
+
         eventShortDto.setConfirmedRequests(requestRepository.countRequestsByEventAndStatus(eventRepository.findById(
                 eventShortDto.getId()).get(), RequestStatus.CONFIRMED));
+
         return eventShortDto;
     }
 

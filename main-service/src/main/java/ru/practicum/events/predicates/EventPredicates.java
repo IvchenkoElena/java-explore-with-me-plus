@@ -6,13 +6,10 @@ import ru.practicum.events.model.EventState;
 import ru.practicum.events.model.QEvent;
 
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
 public final class EventPredicates {
-
-    public static final String DATE_PATTERN = "yyyy-MM-dd HH:mm:ss";
 
     private EventPredicates() {
     }
@@ -41,11 +38,11 @@ public final class EventPredicates {
         return QEvent.event.eventDate.loe(to);
     }
 
-    private static BooleanExpression annotationContain(String text) {
+    private static BooleanExpression annotationContainsIgnoreCase(String text) {
         return QEvent.event.annotation.containsIgnoreCase(text);
     }
 
-    private static BooleanExpression descriptionContain(String text) {
+    private static BooleanExpression descriptionContainsIgnoreCase(String text) {
         return QEvent.event.description.containsIgnoreCase(text);
     }
 
@@ -83,23 +80,20 @@ public final class EventPredicates {
         return null;
     }
 
-    public static Predicate publicFilter(String text, List<Long> categories, String rangeStart,
-                                         String rangeEnd, Boolean paid) {
+    public static Predicate publicFilter(String text, List<Long> categories, LocalDateTime start,
+                                         LocalDateTime end, Boolean paid) {
         final List<BooleanExpression> expressions = new ArrayList<BooleanExpression>();
+
         if (text != null && !text.isBlank()) {
-            expressions.add(annotationContain(text));
-            expressions.add(descriptionContain(text));
+            expressions.add(annotationContainsIgnoreCase(text));
+            expressions.add(descriptionContainsIgnoreCase(text));
         }
         if (categories != null && !categories.isEmpty() && categories.getFirst() != 0) {
             expressions.add(categoriesIn(categories));
         }
-        if (rangeStart != null && rangeEnd != null) {
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern(DATE_PATTERN);
-            LocalDateTime from = LocalDateTime.parse(rangeStart, formatter);
-            expressions.add(eventDateGoe(from));
-
-            LocalDateTime to = LocalDateTime.parse(rangeEnd, formatter);
-            expressions.add(eventDateLoe(to));
+        if (start != null && end != null) {
+            expressions.add(eventDateGoe(start));
+            expressions.add(eventDateLoe(end));
         } else {
             expressions.add(eventDateGoe(LocalDateTime.now()));
         }
@@ -110,17 +104,14 @@ public final class EventPredicates {
 
         expressions.add(isPublish());
 
-        if (!expressions.isEmpty()) {
-            BooleanExpression expression = expressions.getFirst();
-            if (expression == null) {
-                return null;
-            }
-            for (int i = 1; i < expressions.size(); i++) {
-                expression = expression.and(expressions.get(i));
-            }
-            return expression;
+        BooleanExpression expression = expressions.getFirst();
+        if (expression == null) {
+            return null;
         }
-        return null;
+        for (int i = 1; i < expressions.size(); i++) {
+            expression = expression.and(expressions.get(i));
+        }
+        return expression;
     }
 
 }

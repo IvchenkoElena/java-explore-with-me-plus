@@ -25,6 +25,6 @@ public interface EventService {
     List<EventShortDto> getEvents(String text, EventSort sort, Integer from, Integer size, List<Long> categories, String rangeStart,
                                   String rangeEnd, Boolean paid, Boolean onlyAvailable, HttpServletRequest request);
 
-    EventDto getEvent(Long id, HttpServletRequest request);
+    EventDto getEvent(Long eventId, HttpServletRequest request);
 
 }

@@ -43,7 +43,6 @@ public class PublicEventController {
      */
     @GetMapping
     @ResponseStatus(HttpStatus.OK)
-    //400 - Запрос составлен некорректно ApiError
     public List<EventShortDto> getEvents(@RequestParam(required = false) @Size(min = 1, max = 7000) String text,
                                          @RequestParam(required = false) EventSort sort,
                                          @RequestParam(required = false, defaultValue = "0") @Min(0) Integer from,
@@ -67,17 +66,8 @@ public class PublicEventController {
      */
     @GetMapping("/{id}")
     @ResponseStatus(HttpStatus.OK)
-    //400 - Запрос составлен некорректно ApiError
-    //404 - Событие не найдено или недоступно ApiError
     public EventDto getEvent(@PathVariable Long id, HttpServletRequest request) {
         return eventService.getEvent(id, request);
     }
-
-    /*
-каждое событие должно относиться к какой-то из закреплённых в приложении категорий;
-должна быть настроена возможность получения всех имеющихся категорий и подборок событий
-(такие подборки будут составлять администраторы ресурса);
-     */
-
 
 }
