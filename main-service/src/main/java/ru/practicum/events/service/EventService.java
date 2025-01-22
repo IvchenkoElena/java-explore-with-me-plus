@@ -1,8 +1,6 @@
 package ru.practicum.events.service;
 
-import jakarta.servlet.http.HttpServletRequest;
 import ru.practicum.events.dto.*;
-import ru.practicum.events.model.EventSort;
 import ru.practicum.events.model.EventState;
 
 import java.time.LocalDateTime;
@@ -22,9 +20,8 @@ public interface EventService {
 
     EventDto privateUpdateUserEvent(Long userId, Long eventId, EventUpdateDto eventUpdateDto);
 
-    List<EventShortDto> getEvents(String text, EventSort sort, Integer from, Integer size, List<Long> categories, String rangeStart,
-                                  String rangeEnd, Boolean paid, Boolean onlyAvailable, HttpServletRequest request);
+    List<EventShortDto> getEvents(EntityParam params);
 
-    EventDto getEvent(Long eventId, HttpServletRequest request);
+    EventDto getEvent(Long eventId);
 
 }

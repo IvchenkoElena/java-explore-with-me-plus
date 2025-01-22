@@ -1,7 +1,6 @@
 package ru.practicum.events.service;
 
 import com.querydsl.core.types.Predicate;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ValidationException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -12,7 +11,6 @@ import ru.practicum.category.repository.CategoryRepository;
 import ru.practicum.client.StatClient;
 import ru.practicum.common.exception.NotFoundException;
 import ru.practicum.common.exception.OperationForbiddenException;
-import ru.practicum.dto.EndpointHitDto;
 import ru.practicum.dto.ViewStats;
 import ru.practicum.events.dto.*;
 import ru.practicum.events.mapper.EventMapper;
@@ -30,7 +28,6 @@ import ru.practicum.user.model.User;
 import ru.practicum.user.repository.UserRepository;
 
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -38,10 +35,6 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class EventServiceImpl implements EventService {
-
-    private static final String MAIN_SERVICE = "ewm-main-service";
-
-    public static final String DATE_PATTERN = "yyyy-MM-dd HH:mm:ss";
 
     private final EventRepository eventRepository;
     private final LocationRepository locationRepository;
@@ -98,63 +91,50 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
-    public List<EventShortDto> getEvents(String text, EventSort sort, Integer from, Integer size, List<Long> categories, String rangeStart,
-                                         String rangeEnd, Boolean paid, Boolean onlyAvailable, HttpServletRequest request) {
-
-        LocalDateTime start = null;
-        LocalDateTime end = null;
+    public List<EventShortDto> getEvents(EntityParam params) {
+        LocalDateTime rangeStart = params.getRangeStart();
+        LocalDateTime rangeEnd = params.getRangeEnd();
         if (rangeStart != null && rangeEnd != null) {
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern(DATE_PATTERN);
-            start = LocalDateTime.parse(rangeStart, formatter);
-            end = LocalDateTime.parse(rangeEnd, formatter);
-            if (start.isAfter(end)) {
+            if (rangeStart.isAfter(rangeEnd)) {
                 throw new ValidationException("Start date can not be after end date");
             }
         }
 
-        Pageable pageable = null;
-        if (from != null && size != null) {
-            pageable = PageRequest.of(from, size);
-        }
+        Predicate predicate = EventPredicates.publicFilter(params.getText(), params.getCategories(), rangeStart,
+                rangeEnd, params.getPaid());
+        Pageable pageable = PageRequest.of(params.getFrom(), params.getSize());
 
-        Predicate predicate = EventPredicates.publicFilter(text, categories, start, end, paid);
-
-        List<Event> filteredEvents = new ArrayList<>();
-        if (pageable != null && predicate != null) {
-            filteredEvents = eventRepository.findAll(predicate, pageable).stream().toList();
-        } else if (predicate != null) {
-            Iterable<Event> iterableEvent = eventRepository.findAll(predicate);
-            for (Event event : iterableEvent) {
-                filteredEvents.add(event);
-            }
-        } else if (pageable != null) {
+        List<Event> filteredEvents;
+        if (predicate != null) {
+            filteredEvents = eventRepository.findAll(predicate, pageable).toList();
+        } else {
             filteredEvents = eventRepository.findAll(pageable).toList();
         }
 
-        List<EventShortDto> available = filteredEvents
+        if (params.getOnlyAvailable()) {
+            filteredEvents = filteredEvents.stream().filter(this::isEventAvailable).toList();
+        }
+        List<EventShortDto> eventDtos = filteredEvents
                 .stream()
-                .filter(this::isEventAvailable)
                 .map(eventMapper::toEventShortDto)
                 .peek(this::addViewsAndConfirmedRequests).toList();
 
+        EventSort sort = params.getSort();
         if (sort != null) {
             switch (sort) {
                 case EVENT_DATE ->
-                        available.stream().sorted(Comparator.comparing(EventShortDto::getEventDate)).toList();
-                case VIEWS -> available.stream().sorted(Comparator.comparing(EventShortDto::getViews)).toList();
+                        eventDtos.stream().sorted(Comparator.comparing(EventShortDto::getEventDate)).toList();
+                case VIEWS -> eventDtos.stream().sorted(Comparator.comparing(EventShortDto::getViews)).toList();
             }
         }
-
-        saveHit(request);
-        return available;
+        return eventDtos;
 
     }
 
     @Override
-    public EventDto getEvent(Long eventId, HttpServletRequest request) {
+    public EventDto getEvent(Long eventId) {
         Event event = eventRepository.findByIdAndState(eventId, EventState.PUBLISHED)
                 .orElseThrow(() -> new NotFoundException(String.format("Event with id %s not found", eventId)));
-        saveHit(request);
         return addViewsAndConfirmedRequests(eventMapper.toDto(event));
     }
 
@@ -290,12 +270,4 @@ public class EventServiceImpl implements EventService {
         return event.getParticipantLimit() > confirmedRequestsAmount;
     }
 
-    private void saveHit(HttpServletRequest request) {
-        EndpointHitDto endpointHitDto = new EndpointHitDto();
-        endpointHitDto.setApp(MAIN_SERVICE);
-        endpointHitDto.setUri(request.getRequestURI());
-        endpointHitDto.setIp(request.getRemoteAddr());
-        endpointHitDto.setTimestamp(LocalDateTime.now());
-        statClient.saveHit(endpointHitDto);
-    }
 }

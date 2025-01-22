@@ -38,12 +38,9 @@ public final class EventPredicates {
         return QEvent.event.eventDate.loe(to);
     }
 
-    private static BooleanExpression annotationContainsIgnoreCase(String text) {
-        return QEvent.event.annotation.containsIgnoreCase(text);
-    }
-
-    private static BooleanExpression descriptionContainsIgnoreCase(String text) {
-        return QEvent.event.description.containsIgnoreCase(text);
+    private static BooleanExpression textContainsIgnoreCase(String text) {
+        return QEvent.event.annotation.containsIgnoreCase(text)
+                .or(QEvent.event.description.containsIgnoreCase(text));
     }
 
     private static BooleanExpression paid(Boolean paid) {
@@ -85,16 +82,21 @@ public final class EventPredicates {
         final List<BooleanExpression> expressions = new ArrayList<BooleanExpression>();
 
         if (text != null && !text.isBlank()) {
-            expressions.add(annotationContainsIgnoreCase(text));
-            expressions.add(descriptionContainsIgnoreCase(text));
+            expressions.add(textContainsIgnoreCase(text));
         }
         if (categories != null && !categories.isEmpty() && categories.getFirst() != 0) {
             expressions.add(categoriesIn(categories));
         }
-        if (start != null && end != null) {
+
+        if (start != null) {
             expressions.add(eventDateGoe(start));
+        }
+
+        if (end != null) {
             expressions.add(eventDateLoe(end));
-        } else {
+        }
+
+        if (start == null && end == null) {
             expressions.add(eventDateGoe(LocalDateTime.now()));
         }
 
@@ -104,14 +106,17 @@ public final class EventPredicates {
 
         expressions.add(isPublish());
 
-        BooleanExpression expression = expressions.getFirst();
-        if (expression == null) {
-            return null;
+        if (!expressions.isEmpty()) {
+            BooleanExpression expression = expressions.getFirst();
+            if (expression == null) {
+                return null;
+            }
+            for (int i = 1; i < expressions.size(); i++) {
+                expression = expression.and(expressions.get(i));
+            }
+            return expression;
         }
-        for (int i = 1; i < expressions.size(); i++) {
-            expression = expression.and(expressions.get(i));
-        }
-        return expression;
+        return null;
     }
 
 }
