@@ -7,7 +7,7 @@ import ru.practicum.compilation.model.Compilation;
 
 @RequiredArgsConstructor
 @Component
-public final class CompilationMapper {
+public final class CompilationMapperImpl {
     private final CompilationMapperUtil compilationMapperUtil;
 
     public CompilationDto toDto(Compilation compilation) {
