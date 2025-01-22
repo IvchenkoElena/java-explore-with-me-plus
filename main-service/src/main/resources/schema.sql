@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS compilations (
 );
 
 CREATE TABLE IF NOT EXISTS compilations_events (
-    compilation_id BIGINT NOT NULL REFERENCES compilations (id) ON DELETE CASCADE,
+    compilation_id BIGINT REFERENCES compilations (id) ON DELETE CASCADE NOT NULL,
     event_id BIGINT NOT NULL REFERENCES events(id) ON DELETE CASCADE
 );
 
