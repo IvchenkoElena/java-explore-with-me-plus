@@ -8,32 +8,42 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import ru.practicum.category.model.Category;
 import ru.practicum.category.repository.CategoryRepository;
+import ru.practicum.client.StatClient;
 import ru.practicum.common.exception.NotFoundException;
 import ru.practicum.common.exception.OperationForbiddenException;
+import ru.practicum.dto.ViewStats;
 import ru.practicum.events.dto.*;
 import ru.practicum.events.mapper.EventMapper;
 import ru.practicum.events.mapper.LocationMapper;
 import ru.practicum.events.model.Event;
+import ru.practicum.events.model.EventSort;
 import ru.practicum.events.model.EventState;
 import ru.practicum.events.model.Location;
 import ru.practicum.events.predicates.EventPredicates;
 import ru.practicum.events.repository.EventRepository;
 import ru.practicum.events.repository.LocationRepository;
+import ru.practicum.request.model.RequestStatus;
+import ru.practicum.request.repository.RequestRepository;
 import ru.practicum.user.model.User;
 import ru.practicum.user.repository.UserRepository;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class EventServiceImpl implements EventService {
+
     private final EventRepository eventRepository;
     private final LocationRepository locationRepository;
     private final CategoryRepository categoryRepository;
     private final UserRepository userRepository;
+    private final RequestRepository requestRepository;
     private final EventMapper eventMapper;
     private final LocationMapper locationMapper;
+    private final StatClient statClient;
 
     @Override
     public List<EventDto> adminEventsSearch(List<Long> users, List<Long> categories, List<EventState> states, LocalDateTime rangeStart, LocalDateTime rangeEnd, int from, int size) {
@@ -79,6 +89,55 @@ public class EventServiceImpl implements EventService {
         event = eventRepository.save(event);
         return addViewsAndConfirmedRequests(eventMapper.toDto(event));
     }
+
+    @Override
+    public List<EventShortDto> getEvents(EntityParam params) {
+        LocalDateTime rangeStart = params.getRangeStart();
+        LocalDateTime rangeEnd = params.getRangeEnd();
+        if (rangeStart != null && rangeEnd != null) {
+            if (rangeStart.isAfter(rangeEnd)) {
+                throw new ValidationException("Start date can not be after end date");
+            }
+        }
+
+        Predicate predicate = EventPredicates.publicFilter(params.getText(), params.getCategories(), rangeStart,
+                rangeEnd, params.getPaid());
+        Pageable pageable = PageRequest.of(params.getFrom(), params.getSize());
+
+        List<Event> filteredEvents;
+        if (predicate != null) {
+            filteredEvents = eventRepository.findAll(predicate, pageable).toList();
+        } else {
+            filteredEvents = eventRepository.findAll(pageable).toList();
+        }
+
+        if (params.getOnlyAvailable()) {
+            filteredEvents = filteredEvents.stream().filter(this::isEventAvailable).toList();
+        }
+        List<EventShortDto> eventDtos = filteredEvents
+                .stream()
+                .map(eventMapper::toEventShortDto)
+                .peek(this::addViewsAndConfirmedRequests).toList();
+
+        EventSort sort = params.getSort();
+        if (sort != null) {
+            switch (sort) {
+                case EVENT_DATE ->
+                        eventDtos.stream().sorted(Comparator.comparing(EventShortDto::getEventDate)).toList();
+                case VIEWS -> eventDtos.stream().sorted(Comparator.comparing(EventShortDto::getViews)).toList();
+            }
+        }
+        return eventDtos;
+
+    }
+
+    @Override
+    public EventDto getEvent(Long eventId) {
+        Event event = eventRepository.findByIdAndState(eventId, EventState.PUBLISHED)
+                .orElseThrow(() -> new NotFoundException(String.format("Event with id %s not found", eventId)));
+        return addViewsAndConfirmedRequests(eventMapper.toDto(event));
+    }
+
 
     private void updateEventData(Event event, String title, String annotation, String description, Long categoryId, LocalDateTime eventDate, LocationDto location, Boolean paid, Boolean requestModeration, Integer participantLimit) {
         if (title != null) {
@@ -181,8 +240,34 @@ public class EventServiceImpl implements EventService {
     }
 
     private EventDto addViewsAndConfirmedRequests(EventDto eventDto) {
-        //todo добавить загрузку views
-        //todo добавить запрос к requests о количестве утвержденных
+        List<String> gettingUris = new ArrayList<>();
+        gettingUris.add("/events/" + eventDto.getId());
+        Long views = statClient.getStats(LocalDateTime.now().minusYears(1), LocalDateTime.now(), gettingUris, true)
+                .stream().map(ViewStats::getHits).reduce(0L, Long::sum);
+        eventDto.setViews(views);
+
+        eventDto.setConfirmedRequests(requestRepository.countRequestsByEventAndStatus(eventRepository.findById(
+                eventDto.getId()).get(), RequestStatus.CONFIRMED));
+
         return eventDto;
     }
+
+    private EventShortDto addViewsAndConfirmedRequests(EventShortDto eventShortDto) {
+        List<String> gettingUris = new ArrayList<>();
+        gettingUris.add("/events/" + eventShortDto.getId());
+        Long views = statClient.getStats(LocalDateTime.now().minusYears(1), LocalDateTime.now(), gettingUris, false)
+                .stream().map(ViewStats::getHits).reduce(0L, Long::sum);
+        eventShortDto.setViews(views);
+
+        eventShortDto.setConfirmedRequests(requestRepository.countRequestsByEventAndStatus(eventRepository.findById(
+                eventShortDto.getId()).get(), RequestStatus.CONFIRMED));
+
+        return eventShortDto;
+    }
+
+    private boolean isEventAvailable(Event event) {
+        Long confirmedRequestsAmount = requestRepository.countRequestsByEventAndStatus(event, RequestStatus.CONFIRMED);
+        return event.getParticipantLimit() > confirmedRequestsAmount;
+    }
+
 }

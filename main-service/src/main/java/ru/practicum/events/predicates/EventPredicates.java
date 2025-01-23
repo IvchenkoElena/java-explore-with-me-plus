@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class EventPredicates {
+
     private EventPredicates() {
     }
 
@@ -19,6 +20,10 @@ public final class EventPredicates {
 
     private static BooleanExpression statesIn(List<EventState> states) {
         return QEvent.event.state.in(states);
+    }
+
+    private static BooleanExpression isPublish() {
+        return QEvent.event.state.eq(EventState.PUBLISHED);
     }
 
     private static BooleanExpression categoriesIn(List<Long> cIds) {
@@ -31,6 +36,15 @@ public final class EventPredicates {
 
     private static BooleanExpression eventDateLoe(LocalDateTime to) {
         return QEvent.event.eventDate.loe(to);
+    }
+
+    private static BooleanExpression textContainsIgnoreCase(String text) {
+        return QEvent.event.annotation.containsIgnoreCase(text)
+                .or(QEvent.event.description.containsIgnoreCase(text));
+    }
+
+    private static BooleanExpression paid(Boolean paid) {
+        return QEvent.event.paid.eq(paid);
     }
 
     public static Predicate adminFilter(List<Long> users, List<Long> categories, List<EventState> states, LocalDateTime rangeStart, LocalDateTime rangeEnd) {
@@ -62,4 +76,47 @@ public final class EventPredicates {
         }
         return null;
     }
+
+    public static Predicate publicFilter(String text, List<Long> categories, LocalDateTime start,
+                                         LocalDateTime end, Boolean paid) {
+        final List<BooleanExpression> expressions = new ArrayList<BooleanExpression>();
+
+        if (text != null && !text.isBlank()) {
+            expressions.add(textContainsIgnoreCase(text));
+        }
+        if (categories != null && !categories.isEmpty() && categories.getFirst() != 0) {
+            expressions.add(categoriesIn(categories));
+        }
+
+        if (start != null) {
+            expressions.add(eventDateGoe(start));
+        }
+
+        if (end != null) {
+            expressions.add(eventDateLoe(end));
+        }
+
+        if (start == null && end == null) {
+            expressions.add(eventDateGoe(LocalDateTime.now()));
+        }
+
+        if (paid != null) {
+            expressions.add(paid(paid));
+        }
+
+        expressions.add(isPublish());
+
+        if (!expressions.isEmpty()) {
+            BooleanExpression expression = expressions.getFirst();
+            if (expression == null) {
+                return null;
+            }
+            for (int i = 1; i < expressions.size(); i++) {
+                expression = expression.and(expressions.get(i));
+            }
+            return expression;
+        }
+        return null;
+    }
+
 }

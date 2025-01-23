@@ -5,7 +5,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import ru.practicum.client.StatClient;
 import ru.practicum.common.exception.*;
-import ru.practicum.dto.EndpointHitDto;
 import ru.practicum.events.model.Event;
 import ru.practicum.events.model.EventState;
 import ru.practicum.events.repository.EventRepository;
@@ -26,8 +25,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class RequestServiceImpl implements RequestService {
 
-    private static final String MAIN_SERVICE = "ewm-main-service";
-
     private final UserRepository userRepository;
     private final EventRepository eventRepository;
     private final RequestRepository requestRepository;
@@ -39,7 +36,6 @@ public class RequestServiceImpl implements RequestService {
     public List<ParticipationRequestDto> getUserRequests(Long userId, HttpServletRequest request) {
         userRepository.findById(userId).orElseThrow(() -> new NotFoundException(String.format("User with id %s not found",
                 userId)));
-        saveHit(request);
         return requestRepository.findByRequesterId(userId).stream()
                 .map(requestMapper::requestToParticipationRequestDto)
                 .toList();
@@ -65,8 +61,14 @@ public class RequestServiceImpl implements RequestService {
         request.setEvent(event);
 
         Long confirmedRequestsAmount = requestRepository.countRequestsByEventAndStatus(event, RequestStatus.CONFIRMED);
-        if (event.getParticipantLimit() <= confirmedRequestsAmount) {
+        if (event.getParticipantLimit() <= confirmedRequestsAmount && event.getParticipantLimit() != 0) {
             throw new ParticipantLimitException(String.format("Participant limit for event with id %s id exceeded", eventId));
+        }
+
+        if (event.getParticipantLimit() == 0) {
+            request.setStatus(RequestStatus.CONFIRMED);
+            request.setCreatedOn(LocalDateTime.now());
+            return requestMapper.requestToParticipationRequestDto(requestRepository.save(request));
         }
 
         if (event.isRequestModeration()) {
@@ -96,7 +98,6 @@ public class RequestServiceImpl implements RequestService {
         Event event = userEvents.stream().filter(e -> e.getInitiator().getId().equals(userId)).findFirst()
                 .orElseThrow(() -> new ValidationException(String.format("User with id %s is not initiator of event with id %s",
                         userId, eventId)));
-        saveHit(request);
         return requestRepository.findByEventId(event.getId())
                 .stream()
                 .map(requestMapper::requestToParticipationRequestDto)
@@ -140,7 +141,6 @@ public class RequestServiceImpl implements RequestService {
                         ParticipationRequestDto confirmed = requestMapper.requestToParticipationRequestDto(
                                 requestRepository.save(currentRequest));
                         confirmedRequests.add(confirmed);
-                        saveHit(request);
                     } else {
                         currentRequest.setStatus(RequestStatus.REJECTED);
                         ParticipationRequestDto rejected = requestMapper.requestToParticipationRequestDto(
@@ -159,15 +159,6 @@ public class RequestServiceImpl implements RequestService {
         result.setConfirmedRequests(confirmedRequests);
         result.setRejectedRequests(rejectedRequests);
         return result;
-    }
-
-    private void saveHit(HttpServletRequest request) {
-        EndpointHitDto endpointHitDto = new EndpointHitDto();
-        endpointHitDto.setApp(MAIN_SERVICE);
-        endpointHitDto.setUri(request.getRequestURI());
-        endpointHitDto.setIp(request.getRemoteAddr());
-        endpointHitDto.setTimestamp(LocalDateTime.now());
-        statClient.saveHit(endpointHitDto);
     }
 
 }
