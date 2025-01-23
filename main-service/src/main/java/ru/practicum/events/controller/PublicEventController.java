@@ -1,12 +1,17 @@
 package ru.practicum.events.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
 import ru.practicum.client.StatClient;
 import ru.practicum.dto.EndpointHitDto;
 import ru.practicum.events.dto.EntityParam;
@@ -54,13 +59,13 @@ public class PublicEventController {
     @ResponseStatus(HttpStatus.OK)
     public List<EventShortDto> getEvents(@RequestParam(required = false) @Size(min = 1, max = 7000) String text,
                                          @RequestParam(required = false) EventSort sort,
-                                         @RequestParam(required = false, defaultValue = "0") @Min(0) int from,
+                                         @RequestParam(required = false, defaultValue = "0") @PositiveOrZero int from,
                                          @RequestParam(required = false, defaultValue = "10") int size,
                                          @RequestParam(required = false) List<Long> categories,
                                          @RequestParam(required = false) @DateTimeFormat(pattern = DATE_PATTERN) LocalDateTime rangeStart,
                                          @RequestParam(required = false) @DateTimeFormat(pattern = DATE_PATTERN) LocalDateTime rangeEnd,
-                                         @RequestParam(required = false) boolean paid,
-                                         @RequestParam(required = false) boolean onlyAvailable,
+                                         @RequestParam(required = false) Boolean paid,
+                                         @RequestParam(required = false, defaultValue = "false") boolean onlyAvailable,
                                          HttpServletRequest request) {
         EntityParam params = new EntityParam();
         params.setText(text);
