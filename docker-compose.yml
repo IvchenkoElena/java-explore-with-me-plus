@@ -38,7 +38,6 @@ services:
     depends_on:
       - ewm-db
     environment:
-      - STAT_SERVER_URI=http://stats-server:9090
       - SPRING_DATASOURCE_URL=jdbc:postgresql://ewm-db:5432/ewm-db
       - SPRING_DATASOURCE_USERNAME=ewm-db
       - SPRING_DATASOURCE_PASSWORD=secret

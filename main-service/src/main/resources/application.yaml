@@ -1,7 +1,5 @@
 server:
   port: 8080
-stats-server:
-  uri: "${STAT_SERVER_URI}"
 spring:
   jpa:
     hibernate:
