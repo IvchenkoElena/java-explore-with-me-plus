@@ -12,7 +12,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class NewCategoryDto {
     @NotBlank
-    @NotEmpty
     @Size(min = 1, max = 50)
     private String name;
 }

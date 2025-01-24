@@ -46,9 +46,9 @@ public class EventServiceImpl implements EventService {
     private final StatClient statClient;
 
     @Override
-    public List<EventDto> adminEventsSearch(List<Long> users, List<Long> categories, List<EventState> states, LocalDateTime rangeStart, LocalDateTime rangeEnd, int from, int size) {
-        Pageable pageable = PageRequest.of(from, size);
-        Predicate predicate = EventPredicates.adminFilter(users, categories, states, rangeStart, rangeEnd);
+    public List<EventDto> adminEventsSearch(SearchEventsParam param) {
+        Pageable pageable = PageRequest.of(param.getFrom(), param.getSize());
+        Predicate predicate = EventPredicates.adminFilter(param);
         if (predicate == null) {
             return eventRepository.findAll(pageable).stream().map(eventMapper::toDto).peek(this::addViewsAndConfirmedRequests).toList();
         } else {

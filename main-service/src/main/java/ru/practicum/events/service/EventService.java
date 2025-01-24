@@ -8,7 +8,7 @@ import java.util.List;
 
 public interface EventService {
 
-    List<EventDto> adminEventsSearch(List<Long> users, List<Long> categories, List<EventState> states, LocalDateTime rangeStart, LocalDateTime rangeEnd, int from, int size);
+    List<EventDto> adminEventsSearch(SearchEventsParam searchEventsParam);
 
     EventDto adminEventUpdate(Long eventId, EventAdminUpdateDto eventDto);
 
