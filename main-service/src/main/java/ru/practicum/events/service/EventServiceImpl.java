@@ -73,10 +73,7 @@ public class EventServiceImpl implements EventService {
                 eventUpdateDto.getRequestModeration(),
                 eventUpdateDto.getParticipantLimit());
         if (eventUpdateDto.getStateAction() != null) {
-            if (eventUpdateDto.getStateAction().equals(AdminUpdateStateAction.PUBLISH_EVENT) && !event.getState().equals(EventState.PENDING)) {
-                throw new OperationForbiddenException("Can't publish not pending event");
-            }
-            if (eventUpdateDto.getStateAction().equals(AdminUpdateStateAction.REJECT_EVENT) && !event.getState().equals(EventState.PENDING)) {
+            if (!event.getState().equals(EventState.PENDING)) {
                 throw new OperationForbiddenException("Can't reject not pending event");
             }
             if (eventUpdateDto.getStateAction().equals(AdminUpdateStateAction.PUBLISH_EVENT)) {

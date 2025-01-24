@@ -14,18 +14,12 @@ import java.time.LocalDateTime;
 @Data
 public class EventCreateDto {
     public static final String DATE_PATTERN = "yyyy-MM-dd HH:mm:ss";
-    @NotNull
-    @NotEmpty
     @NotBlank
     @Size(min = 3, max = 120)
     private String title;
-    @NotNull
-    @NotEmpty
     @NotBlank
     @Size(min = 20, max = 2000)
     private String annotation;
-    @NotNull
-    @NotEmpty
     @NotBlank
     @Size(min = 20, max = 7000)
     private String description;
