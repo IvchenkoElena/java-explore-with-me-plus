@@ -3,8 +3,13 @@ package ru.practicum.request.service;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import ru.practicum.client.StatClient;
-import ru.practicum.common.exception.*;
+import ru.practicum.common.exception.InitiatorRequestException;
+import ru.practicum.common.exception.NotFoundException;
+import ru.practicum.common.exception.NotPublishEventException;
+import ru.practicum.common.exception.OperationUnnecessaryException;
+import ru.practicum.common.exception.ParticipantLimitException;
+import ru.practicum.common.exception.RepeatableUserRequestException;
+import ru.practicum.common.exception.ValidationException;
 import ru.practicum.events.model.Event;
 import ru.practicum.events.model.EventState;
 import ru.practicum.events.repository.EventRepository;
@@ -28,7 +33,6 @@ public class RequestServiceImpl implements RequestService {
     private final UserRepository userRepository;
     private final EventRepository eventRepository;
     private final RequestRepository requestRepository;
-    private final StatClient statClient;
 
     private final RequestMapper requestMapper;
 
