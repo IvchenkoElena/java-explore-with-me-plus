@@ -31,6 +31,7 @@ import ru.practicum.events.model.Location;
 import ru.practicum.events.predicates.EventPredicates;
 import ru.practicum.events.repository.EventRepository;
 import ru.practicum.events.repository.LocationRepository;
+import ru.practicum.request.model.Request;
 import ru.practicum.request.model.RequestStatus;
 import ru.practicum.request.repository.RequestRepository;
 import ru.practicum.user.model.User;
@@ -40,6 +41,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -184,10 +186,10 @@ public class EventServiceImpl implements EventService {
     @Override
     public List<EventDto> privateUserEvents(Long userId, int from, int size) {
         Pageable pageable = PageRequest.of(from, size);
-        return eventRepository.findAllByInitiator_Id(userId, pageable).stream()
+        List<EventDto> list = eventRepository.findAllByInitiator_Id(userId, pageable).stream()
                 .map(eventMapper::toDto)
-                .peek(this::addViewsAndConfirmedRequests)
                 .toList();
+         return addViewsAndConfirmedRequestsToList(list);
     }
 
     @Override
@@ -274,6 +276,26 @@ public class EventServiceImpl implements EventService {
     private boolean isEventAvailable(Event event) {
         Long confirmedRequestsAmount = requestRepository.countRequestsByEventAndStatus(event, RequestStatus.CONFIRMED);
         return event.getParticipantLimit() > confirmedRequestsAmount;
+    }
+
+    private List<EventDto> addViewsAndConfirmedRequestsToList(List<EventDto> eventDtoList) {
+
+        List<Long> idsList = eventDtoList.stream().map(EventDto::getId).toList();
+        List<Request> requests = requestRepository.findAllByEventIdIn(idsList);
+
+        List<String> uris = eventDtoList.stream().map(dto -> "/events/" + dto.getId()).toList();
+        List<ViewStats> viewStats = statClient.getStats(LocalDateTime.now().minusYears(1), LocalDateTime.now(), uris, false);
+
+        List<EventDto> changedList = eventDtoList.stream()
+                .peek(dto -> dto.setConfirmedRequests(requests.stream()
+                        .filter(r -> Objects.equals(r.getEvent().getId(), dto.getId())).count()))
+                .peek(dto -> dto.setViews(viewStats.stream()
+                        .filter(v -> v.getUri().equals("/events/" + dto.getId()))
+                        .map(ViewStats::getHits)
+                        .reduce(0L, Long::sum)))
+                .toList();
+
+        return changedList;
     }
 
 }
