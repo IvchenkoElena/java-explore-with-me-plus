@@ -24,4 +24,5 @@ public interface RequestRepository extends JpaRepository<Request, Long> {
     @Query("SELECT COUNT(r) FROM Request r WHERE r.event = :event and r.status = :status")
     long countRequestsByEventAndStatus(Event event, RequestStatus status);
 
+    List<Request> findAllByEventIdIn(List<Long> idsList);
 }
