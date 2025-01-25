@@ -12,7 +12,16 @@ import ru.practicum.client.StatClient;
 import ru.practicum.common.exception.NotFoundException;
 import ru.practicum.common.exception.OperationForbiddenException;
 import ru.practicum.dto.ViewStats;
-import ru.practicum.events.dto.*;
+import ru.practicum.events.dto.AdminUpdateStateAction;
+import ru.practicum.events.dto.EntityParam;
+import ru.practicum.events.dto.EventAdminUpdateDto;
+import ru.practicum.events.dto.EventCreateDto;
+import ru.practicum.events.dto.EventDto;
+import ru.practicum.events.dto.EventShortDto;
+import ru.practicum.events.dto.EventUpdateDto;
+import ru.practicum.events.dto.LocationDto;
+import ru.practicum.events.dto.SearchEventsParam;
+import ru.practicum.events.dto.UpdateStateAction;
 import ru.practicum.events.mapper.EventMapper;
 import ru.practicum.events.mapper.LocationMapper;
 import ru.practicum.events.model.Event;
@@ -46,9 +55,9 @@ public class EventServiceImpl implements EventService {
     private final StatClient statClient;
 
     @Override
-    public List<EventDto> adminEventsSearch(List<Long> users, List<Long> categories, List<EventState> states, LocalDateTime rangeStart, LocalDateTime rangeEnd, int from, int size) {
-        Pageable pageable = PageRequest.of(from, size);
-        Predicate predicate = EventPredicates.adminFilter(users, categories, states, rangeStart, rangeEnd);
+    public List<EventDto> adminEventsSearch(SearchEventsParam param) {
+        Pageable pageable = PageRequest.of(param.getFrom(), param.getSize());
+        Predicate predicate = EventPredicates.adminFilter(param);
         if (predicate == null) {
             return eventRepository.findAll(pageable).stream().map(eventMapper::toDto).peek(this::addViewsAndConfirmedRequests).toList();
         } else {
@@ -73,10 +82,7 @@ public class EventServiceImpl implements EventService {
                 eventUpdateDto.getRequestModeration(),
                 eventUpdateDto.getParticipantLimit());
         if (eventUpdateDto.getStateAction() != null) {
-            if (eventUpdateDto.getStateAction().equals(AdminUpdateStateAction.PUBLISH_EVENT) && !event.getState().equals(EventState.PENDING)) {
-                throw new OperationForbiddenException("Can't publish not pending event");
-            }
-            if (eventUpdateDto.getStateAction().equals(AdminUpdateStateAction.REJECT_EVENT) && !event.getState().equals(EventState.PENDING)) {
+            if (!event.getState().equals(EventState.PENDING)) {
                 throw new OperationForbiddenException("Can't reject not pending event");
             }
             if (eventUpdateDto.getStateAction().equals(AdminUpdateStateAction.PUBLISH_EVENT)) {

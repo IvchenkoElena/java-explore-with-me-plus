@@ -3,8 +3,13 @@ package ru.practicum.request.service;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import ru.practicum.client.StatClient;
-import ru.practicum.common.exception.*;
+import ru.practicum.common.exception.InitiatorRequestException;
+import ru.practicum.common.exception.NotFoundException;
+import ru.practicum.common.exception.NotPublishEventException;
+import ru.practicum.common.exception.OperationUnnecessaryException;
+import ru.practicum.common.exception.ParticipantLimitException;
+import ru.practicum.common.exception.RepeatableUserRequestException;
+import ru.practicum.common.exception.ValidationException;
 import ru.practicum.events.model.Event;
 import ru.practicum.events.model.EventState;
 import ru.practicum.events.repository.EventRepository;
@@ -28,7 +33,6 @@ public class RequestServiceImpl implements RequestService {
     private final UserRepository userRepository;
     private final EventRepository eventRepository;
     private final RequestRepository requestRepository;
-    private final StatClient statClient;
 
     private final RequestMapper requestMapper;
 
@@ -127,34 +131,34 @@ public class RequestServiceImpl implements RequestService {
         List<ParticipationRequestDto> confirmedRequests = new ArrayList<>();
         List<ParticipationRequestDto> rejectedRequests = new ArrayList<>();
 
-        Long confirmedRequestsAmount;
+        long confirmedRequestsAmount;
         confirmedRequestsAmount = requestRepository.countRequestsByEventAndStatus(event, RequestStatus.CONFIRMED);
         if (confirmedRequestsAmount >= participantLimit) {
             throw new ParticipantLimitException(String.format("Participant limit for event with id %s id exceeded", eventId));
         }
-        for (int i = 0; i < requests.size(); i++) {
-            Request currentRequest = requests.get(i);
+        for (Request currentRequest : requests) {
             if (currentRequest.getStatus().equals(RequestStatus.PENDING)) {
                 if (eventStatusUpdate.getStatus().equals(RequestStatus.CONFIRMED)) {
                     if (confirmedRequestsAmount <= participantLimit) {
                         currentRequest.setStatus(RequestStatus.CONFIRMED);
-                        ParticipationRequestDto confirmed = requestMapper.requestToParticipationRequestDto(
-                                requestRepository.save(currentRequest));
+                        ParticipationRequestDto confirmed = requestMapper
+                                .requestToParticipationRequestDto(currentRequest);
                         confirmedRequests.add(confirmed);
                     } else {
                         currentRequest.setStatus(RequestStatus.REJECTED);
-                        ParticipationRequestDto rejected = requestMapper.requestToParticipationRequestDto(
-                                requestRepository.save(currentRequest));
+                        ParticipationRequestDto rejected = requestMapper
+                                .requestToParticipationRequestDto(currentRequest);
                         rejectedRequests.add(rejected);
                     }
                 } else {
                     currentRequest.setStatus(eventStatusUpdate.getStatus());
-                    ParticipationRequestDto rejected = requestMapper.requestToParticipationRequestDto(
-                            requestRepository.save(currentRequest));
+                    ParticipationRequestDto rejected = requestMapper
+                            .requestToParticipationRequestDto(currentRequest);
                     rejectedRequests.add(rejected);
                 }
             }
         }
+        requestRepository.saveAll(requests);
         EventRequestStatusUpdateResult result = new EventRequestStatusUpdateResult();
         result.setConfirmedRequests(confirmedRequests);
         result.setRejectedRequests(rejectedRequests);

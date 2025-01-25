@@ -25,7 +25,6 @@ public class UserServiceImpl implements UserService {
             return userRepository.findAll(pageable).stream().map(userMapper::toUserDto).toList();
         }
         return userRepository.findAllByIdIn(ids, pageable).stream().map(userMapper::toUserDto).toList();
-//        return List.of();
     }
 
     @Override

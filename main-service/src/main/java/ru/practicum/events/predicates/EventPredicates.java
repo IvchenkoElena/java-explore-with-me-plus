@@ -2,6 +2,7 @@ package ru.practicum.events.predicates;
 
 import com.querydsl.core.types.Predicate;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import ru.practicum.events.dto.SearchEventsParam;
 import ru.practicum.events.model.EventState;
 import ru.practicum.events.model.QEvent;
 
@@ -47,22 +48,22 @@ public final class EventPredicates {
         return QEvent.event.paid.eq(paid);
     }
 
-    public static Predicate adminFilter(List<Long> users, List<Long> categories, List<EventState> states, LocalDateTime rangeStart, LocalDateTime rangeEnd) {
+    public static Predicate adminFilter(SearchEventsParam param) {
         final List<BooleanExpression> expressions = new ArrayList<BooleanExpression>();
-        if (users != null && !users.isEmpty() && users.getFirst() != 0) {
-            expressions.add(initiatorIdIn(users));
+        if (param.getUsers() != null && !param.getUsers().isEmpty() && param.getUsers().getFirst() != 0) {
+            expressions.add(initiatorIdIn(param.getUsers()));
         }
-        if (categories != null && !categories.isEmpty() && categories.getFirst() != 0) {
-            expressions.add(categoriesIn(categories));
+        if (param.getCategories() != null && !param.getCategories().isEmpty() && param.getCategories().getFirst() != 0) {
+            expressions.add(categoriesIn(param.getCategories()));
         }
-        if (states != null && !states.isEmpty() && states.getFirst() != null) {
-            expressions.add(statesIn(states));
+        if (param.getStates() != null && !param.getStates().isEmpty() && param.getStates().getFirst() != null) {
+            expressions.add(statesIn(param.getStates()));
         }
-        if (rangeStart != null) {
-            expressions.add(eventDateGoe(rangeStart));
+        if (param.getRangeStart() != null) {
+            expressions.add(eventDateGoe(param.getRangeStart()));
         }
-        if (rangeEnd != null) {
-            expressions.add(eventDateLoe(rangeEnd));
+        if (param.getRangeEnd() != null) {
+            expressions.add(eventDateLoe(param.getRangeEnd()));
         }
         if (!expressions.isEmpty()) {
             BooleanExpression expression = expressions.getFirst();

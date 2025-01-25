@@ -1,14 +1,18 @@
 package ru.practicum.events.service;
 
-import ru.practicum.events.dto.*;
-import ru.practicum.events.model.EventState;
+import ru.practicum.events.dto.EntityParam;
+import ru.practicum.events.dto.EventAdminUpdateDto;
+import ru.practicum.events.dto.EventCreateDto;
+import ru.practicum.events.dto.EventDto;
+import ru.practicum.events.dto.EventShortDto;
+import ru.practicum.events.dto.EventUpdateDto;
+import ru.practicum.events.dto.SearchEventsParam;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 public interface EventService {
 
-    List<EventDto> adminEventsSearch(List<Long> users, List<Long> categories, List<EventState> states, LocalDateTime rangeStart, LocalDateTime rangeEnd, int from, int size);
+    List<EventDto> adminEventsSearch(SearchEventsParam searchEventsParam);
 
     EventDto adminEventUpdate(Long eventId, EventAdminUpdateDto eventDto);
 

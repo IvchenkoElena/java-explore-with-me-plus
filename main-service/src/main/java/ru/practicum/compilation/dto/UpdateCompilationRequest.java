@@ -11,7 +11,6 @@ public class UpdateCompilationRequest {
     private List<Long> events;
     private boolean pinned = false;
 
-    @Size(min = 1)
-    @Size(max = 50)
+    @Size(min = 1,max = 50)
     private String title;
 }
