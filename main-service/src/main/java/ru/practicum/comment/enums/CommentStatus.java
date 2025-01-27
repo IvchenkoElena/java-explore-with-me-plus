@@ -4,5 +4,5 @@ public enum CommentStatus {
     PENDING,
     PUBLISHED,
     REJECTED,
-    CANCELED;
+    CANCELED
 }
