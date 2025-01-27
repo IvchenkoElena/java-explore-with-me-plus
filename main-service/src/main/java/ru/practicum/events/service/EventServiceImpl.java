@@ -9,6 +9,9 @@ import org.springframework.stereotype.Service;
 import ru.practicum.category.model.Category;
 import ru.practicum.category.repository.CategoryRepository;
 import ru.practicum.client.StatClient;
+import ru.practicum.comment.dto.CommentDto;
+import ru.practicum.comment.mapper.CommentMapper;
+import ru.practicum.comment.repository.CommentRepository;
 import ru.practicum.common.exception.NotFoundException;
 import ru.practicum.common.exception.OperationForbiddenException;
 import ru.practicum.dto.ViewStats;
@@ -55,15 +58,17 @@ public class EventServiceImpl implements EventService {
     private final EventMapper eventMapper;
     private final LocationMapper locationMapper;
     private final StatClient statClient;
+    private final CommentRepository commentRepository;
+    private final CommentMapper commentMapper;
 
     @Override
     public List<EventDto> adminEventsSearch(SearchEventsParam param) {
         Pageable pageable = PageRequest.of(param.getFrom(), param.getSize());
         Predicate predicate = EventPredicates.adminFilter(param);
         if (predicate == null) {
-            return eventRepository.findAll(pageable).stream().map(eventMapper::toDto).peek(this::addViewsAndConfirmedRequests).toList();
+            return addAdvancedDataToList(eventRepository.findAll(pageable).stream().map(eventMapper::toDto).toList());
         } else {
-            return eventRepository.findAll(predicate, pageable).stream().map(eventMapper::toDto).peek(this::addViewsAndConfirmedRequests).toList();
+            return addAdvancedDataToList(eventRepository.findAll(predicate, pageable).stream().map(eventMapper::toDto).toList());
         }
     }
 
@@ -95,7 +100,7 @@ public class EventServiceImpl implements EventService {
             }
         }
         event = eventRepository.save(event);
-        return addViewsAndConfirmedRequests(eventMapper.toDto(event));
+        return addAdvancedData(eventMapper.toDto(event));
     }
 
     @Override
@@ -122,10 +127,10 @@ public class EventServiceImpl implements EventService {
         if (params.getOnlyAvailable()) {
             filteredEvents = filteredEvents.stream().filter(this::isEventAvailable).toList();
         }
-        List<EventShortDto> eventDtos = filteredEvents
+        List<EventShortDto> eventDtos = addAdvancedDataToShortDtoList(filteredEvents
                 .stream()
                 .map(eventMapper::toEventShortDto)
-                .peek(this::addViewsAndConfirmedRequests).toList();
+                .toList());
 
         EventSort sort = params.getSort();
         if (sort != null) {
@@ -136,14 +141,13 @@ public class EventServiceImpl implements EventService {
             }
         }
         return eventDtos;
-
     }
 
     @Override
     public EventDto getEvent(Long eventId) {
         Event event = eventRepository.findByIdAndState(eventId, EventState.PUBLISHED)
                 .orElseThrow(() -> new NotFoundException(String.format("Event with id %s not found", eventId)));
-        return addViewsAndConfirmedRequests(eventMapper.toDto(event));
+        return addAdvancedData(eventMapper.toDto(event));
     }
 
 
@@ -189,7 +193,7 @@ public class EventServiceImpl implements EventService {
         List<EventDto> list = eventRepository.findAllByInitiator_Id(userId, pageable).stream()
                 .map(eventMapper::toDto)
                 .toList();
-         return addViewsAndConfirmedRequestsToList(list);
+         return addAdvancedDataToList(list);
     }
 
     @Override
@@ -209,14 +213,14 @@ public class EventServiceImpl implements EventService {
         event.setCreatedOn(LocalDateTime.now());
         event.setState(EventState.PENDING);
         event = eventRepository.save(event);
-        return addViewsAndConfirmedRequests(eventMapper.toDto(event));
+        return addAdvancedData(eventMapper.toDto(event));
     }
 
     @Override
     public EventDto privateGetUserEvent(Long userId, Long eventId) {
         Event event = eventRepository.findByIdAndInitiator_Id(eventId, userId)
                 .orElseThrow(() -> new NotFoundException(String.format("Event with id %s not found", eventId)));
-        return addViewsAndConfirmedRequests(eventMapper.toDto(event));
+        return addAdvancedData(eventMapper.toDto(event));
     }
 
     @Override
@@ -244,10 +248,10 @@ public class EventServiceImpl implements EventService {
             }
         }
         event = eventRepository.save(event);
-        return addViewsAndConfirmedRequests(eventMapper.toDto(event));
+        return addAdvancedData(eventMapper.toDto(event));
     }
 
-    private EventDto addViewsAndConfirmedRequests(EventDto eventDto) {
+    private EventDto addAdvancedData(EventDto eventDto) {
         List<String> gettingUris = new ArrayList<>();
         gettingUris.add("/events/" + eventDto.getId());
         Long views = statClient.getStats(LocalDateTime.now().minusYears(1), LocalDateTime.now(), gettingUris, true)
@@ -256,6 +260,12 @@ public class EventServiceImpl implements EventService {
 
         eventDto.setConfirmedRequests(requestRepository.countRequestsByEventAndStatus(eventRepository.findById(
                 eventDto.getId()).get(), RequestStatus.CONFIRMED));
+
+        List<CommentDto> comments = commentRepository.findByEventId(eventDto.getId())
+                .stream()
+                .map(commentMapper::toDto)
+                .toList();
+        eventDto.setComments(comments);
 
         return eventDto;
     }
@@ -278,17 +288,26 @@ public class EventServiceImpl implements EventService {
         return event.getParticipantLimit() > confirmedRequestsAmount;
     }
 
-    private List<EventDto> addViewsAndConfirmedRequestsToList(List<EventDto> eventDtoList) {
+    private List<EventDto> addAdvancedDataToList(List<EventDto> eventDtoList) {
 
         List<Long> idsList = eventDtoList.stream().map(EventDto::getId).toList();
         List<Request> requests = requestRepository.findAllByEventIdIn(idsList);
+
+        List<CommentDto> comments = commentRepository.findAllByEventIdIn(idsList)
+                .stream()
+                .map(commentMapper::toDto)
+                .toList();
 
         List<String> uris = eventDtoList.stream().map(dto -> "/events/" + dto.getId()).toList();
         List<ViewStats> viewStats = statClient.getStats(LocalDateTime.now().minusYears(1), LocalDateTime.now(), uris, false);
 
         List<EventDto> changedList = eventDtoList.stream()
                 .peek(dto -> dto.setConfirmedRequests(requests.stream()
-                        .filter(r -> Objects.equals(r.getEvent().getId(), dto.getId())).count()))
+                        .filter(r -> Objects.equals(r.getEvent().getId(), dto.getId()))
+                        .count()))
+                .peek(dto -> dto.setComments(comments.stream()
+                        .filter(c -> Objects.equals(c.getEventId(), dto.getId()))
+                        .toList()))
                 .peek(dto -> dto.setViews(viewStats.stream()
                         .filter(v -> v.getUri().equals("/events/" + dto.getId()))
                         .map(ViewStats::getHits)
@@ -298,4 +317,29 @@ public class EventServiceImpl implements EventService {
         return changedList;
     }
 
+    private List<EventShortDto> addAdvancedDataToShortDtoList(List<EventShortDto> eventShortDtoList) {
+
+        List<Long> idsList = eventShortDtoList.stream().map(EventShortDto::getId).toList();
+        List<Request> requests = requestRepository.findAllByEventIdIn(idsList);
+
+        List<CommentDto> comments = commentRepository.findAllByEventIdIn(idsList)
+                .stream()
+                .map(commentMapper::toDto)
+                .toList();
+
+        List<String> uris = eventShortDtoList.stream().map(dto -> "/events/" + dto.getId()).toList();
+        List<ViewStats> viewStats = statClient.getStats(LocalDateTime.now().minusYears(1), LocalDateTime.now(), uris, false);
+
+        List<EventShortDto> changedList = eventShortDtoList.stream()
+                .peek(dto -> dto.setConfirmedRequests(requests.stream()
+                        .filter(r -> Objects.equals(r.getEvent().getId(), dto.getId()))
+                        .count()))
+                .peek(dto -> dto.setViews(viewStats.stream()
+                        .filter(v -> v.getUri().equals("/events/" + dto.getId()))
+                        .map(ViewStats::getHits)
+                        .reduce(0L, Long::sum)))
+                .toList();
+
+        return changedList;
+    }
 }
