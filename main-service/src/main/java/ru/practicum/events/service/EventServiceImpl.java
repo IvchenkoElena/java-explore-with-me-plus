@@ -10,6 +10,7 @@ import ru.practicum.category.model.Category;
 import ru.practicum.category.repository.CategoryRepository;
 import ru.practicum.client.StatClient;
 import ru.practicum.comment.dto.CommentDto;
+import ru.practicum.comment.enums.CommentStatus;
 import ru.practicum.comment.mapper.CommentMapper;
 import ru.practicum.comment.repository.CommentRepository;
 import ru.practicum.common.exception.NotFoundException;
@@ -261,26 +262,13 @@ public class EventServiceImpl implements EventService {
         eventDto.setConfirmedRequests(requestRepository.countRequestsByEventAndStatus(eventRepository.findById(
                 eventDto.getId()).get(), RequestStatus.CONFIRMED));
 
-        List<CommentDto> comments = commentRepository.findByEventId(eventDto.getId())
+        List<CommentDto> comments = commentRepository.findByEventIdAndStatus(eventDto.getId(), CommentStatus.PUBLISHED)
                 .stream()
                 .map(commentMapper::toDto)
                 .toList();
         eventDto.setComments(comments);
 
         return eventDto;
-    }
-
-    private EventShortDto addViewsAndConfirmedRequests(EventShortDto eventShortDto) {
-        List<String> gettingUris = new ArrayList<>();
-        gettingUris.add("/events/" + eventShortDto.getId());
-        Long views = statClient.getStats(LocalDateTime.now().minusYears(1), LocalDateTime.now(), gettingUris, false)
-                .stream().map(ViewStats::getHits).reduce(0L, Long::sum);
-        eventShortDto.setViews(views);
-
-        eventShortDto.setConfirmedRequests(requestRepository.countRequestsByEventAndStatus(eventRepository.findById(
-                eventShortDto.getId()).get(), RequestStatus.CONFIRMED));
-
-        return eventShortDto;
     }
 
     private boolean isEventAvailable(Event event) {
@@ -293,7 +281,7 @@ public class EventServiceImpl implements EventService {
         List<Long> idsList = eventDtoList.stream().map(EventDto::getId).toList();
         List<Request> requests = requestRepository.findAllByEventIdIn(idsList);
 
-        List<CommentDto> comments = commentRepository.findAllByEventIdIn(idsList)
+        List<CommentDto> comments = commentRepository.findAllByEventIdInAndStatus(idsList, CommentStatus.PUBLISHED)
                 .stream()
                 .map(commentMapper::toDto)
                 .toList();
@@ -322,7 +310,7 @@ public class EventServiceImpl implements EventService {
         List<Long> idsList = eventShortDtoList.stream().map(EventShortDto::getId).toList();
         List<Request> requests = requestRepository.findAllByEventIdIn(idsList);
 
-        List<CommentDto> comments = commentRepository.findAllByEventIdIn(idsList)
+        List<CommentDto> comments = commentRepository.findAllByEventIdInAndStatus(idsList, CommentStatus.PUBLISHED)
                 .stream()
                 .map(commentMapper::toDto)
                 .toList();
