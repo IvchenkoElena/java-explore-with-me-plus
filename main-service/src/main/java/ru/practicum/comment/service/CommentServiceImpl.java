@@ -44,7 +44,7 @@ public class CommentServiceImpl implements CommentService {
         if (authorId == event.getInitiator().getId()) {
             throw new OperationForbiddenException("Инициатор мероприятия не может оставлять комментарии к нему");
         }
-        if (!event.getState().equals(EventState.PUBLISHED)||!event.getEventDate().isBefore(LocalDateTime.now())) {
+        if (!event.getState().equals(EventState.PUBLISHED) || !event.getEventDate().isBefore(LocalDateTime.now())) {
             throw new OperationForbiddenException("Мероприятие должно быть опубликовано, а дата его проведения в прошлом");
         }
         if (requestRepository.findByRequesterIdAndEventIdAndStatus(authorId, eventId, RequestStatus.CONFIRMED).isEmpty()) {
