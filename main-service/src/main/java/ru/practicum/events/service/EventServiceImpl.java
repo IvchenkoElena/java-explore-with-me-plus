@@ -44,8 +44,8 @@ import ru.practicum.user.repository.UserRepository;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -67,9 +67,9 @@ public class EventServiceImpl implements EventService {
         Pageable pageable = PageRequest.of(param.getFrom(), param.getSize());
         Predicate predicate = EventPredicates.adminFilter(param);
         if (predicate == null) {
-            return addAdvancedDataToList(eventRepository.findAll(pageable).stream().map(eventMapper::toDto).toList());
+            return addMinimalDataToList(eventRepository.findAll(pageable).stream().map(eventMapper::toDto).toList());
         } else {
-            return addAdvancedDataToList(eventRepository.findAll(predicate, pageable).stream().map(eventMapper::toDto).toList());
+            return addMinimalDataToList(eventRepository.findAll(predicate, pageable).stream().map(eventMapper::toDto).toList());
         }
     }
 
@@ -194,7 +194,7 @@ public class EventServiceImpl implements EventService {
         List<EventDto> list = eventRepository.findAllByInitiator_Id(userId, pageable).stream()
                 .map(eventMapper::toDto)
                 .toList();
-         return addAdvancedDataToList(list);
+        return addAdvancedDataToList(list);
     }
 
     @Override
@@ -276,58 +276,82 @@ public class EventServiceImpl implements EventService {
         return event.getParticipantLimit() > confirmedRequestsAmount;
     }
 
-    private List<EventDto> addAdvancedDataToList(List<EventDto> eventDtoList) {
+    private HashMap<Long, Long> getEventConfirmedRequestsCount(List<Long> idsList) {
+        List<Request> requests = requestRepository.findAllByEventIdInAndStatus(idsList, RequestStatus.CONFIRMED);
+        HashMap<Long, Long> confirmedRequestMap = new HashMap<>();
+        for (Request request : requests) {
+            if (confirmedRequestMap.containsKey(request.getEvent().getId())) {
+                confirmedRequestMap.put(request.getEvent().getId(), confirmedRequestMap.get(request.getEvent().getId()) + 1);
+            } else {
+                confirmedRequestMap.put(request.getEvent().getId(), 1L);
+            }
+        }
+        for (Long id : idsList) {
+            if (!confirmedRequestMap.containsKey(id)) {
+                confirmedRequestMap.put(id, 0L);
+            }
+        }
+        return confirmedRequestMap;
+    }
 
-        List<Long> idsList = eventDtoList.stream().map(EventDto::getId).toList();
-        List<Request> requests = requestRepository.findAllByEventIdIn(idsList);
-
+    private HashMap<Long, List<CommentDto>> getEventComments(List<Long> idsList) {
         List<CommentDto> comments = commentRepository.findAllByEventIdInAndStatus(idsList, CommentStatus.PUBLISHED)
                 .stream()
                 .map(commentMapper::toDto)
                 .toList();
+        HashMap<Long, List<CommentDto>> commentsMap = new HashMap<>();
+        for (CommentDto comment : comments) {
+            if (!commentsMap.containsKey(comment.getEventId())) {
+                commentsMap.put(comment.getEventId(), new ArrayList<>());
+            }
+            commentsMap.get(comment.getEventId()).add(comment);
+        }
+        return commentsMap;
+    }
 
-        List<String> uris = eventDtoList.stream().map(dto -> "/events/" + dto.getId()).toList();
+    private HashMap<Long, Long> getEventViews(List<Long> idsList) {
+        List<String> uris = idsList.stream().map(id -> "/events/" + id).toList();
         List<ViewStats> viewStats = statClient.getStats(LocalDateTime.now().minusYears(1), LocalDateTime.now(), uris, false);
+        HashMap<Long, Long> viewMap = new HashMap<>();
+        for (Long id : idsList) {
+            viewMap.put(id, viewStats.stream().filter(v -> v.getUri().equals("/events/" + id)).map(ViewStats::getHits).findFirst().orElse(0L));
+        }
+        return viewMap;
+    }
 
-        List<EventDto> changedList = eventDtoList.stream()
-                .peek(dto -> dto.setConfirmedRequests(requests.stream()
-                        .filter(r -> Objects.equals(r.getEvent().getId(), dto.getId()))
-                        .count()))
-                .peek(dto -> dto.setComments(comments.stream()
-                        .filter(c -> Objects.equals(c.getEventId(), dto.getId()))
-                        .toList()))
-                .peek(dto -> dto.setViews(viewStats.stream()
-                        .filter(v -> v.getUri().equals("/events/" + dto.getId()))
-                        .map(ViewStats::getHits)
-                        .reduce(0L, Long::sum)))
+    private List<EventDto> addMinimalDataToList(List<EventDto> eventDtoList) {
+
+        List<Long> idsList = eventDtoList.stream().map(EventDto::getId).toList();
+        HashMap<Long, Long> confirmedMap = getEventConfirmedRequestsCount(idsList);
+
+        return eventDtoList.stream()
+                .peek(dto -> dto.setConfirmedRequests(confirmedMap.get(dto.getId())))
                 .toList();
+    }
 
-        return changedList;
+    private List<EventDto> addAdvancedDataToList(List<EventDto> eventDtoList) {
+
+        List<Long> idsList = eventDtoList.stream().map(EventDto::getId).toList();
+        HashMap<Long, Long> viewsMap = getEventViews(idsList);
+        HashMap<Long, Long> confirmedMap = getEventConfirmedRequestsCount(idsList);
+        HashMap<Long, List<CommentDto>> commentMap = getEventComments(idsList);
+
+        return eventDtoList.stream()
+                .peek(dto -> dto.setComments(commentMap.get(dto.getId())))
+                .peek(dto -> dto.setViews(viewsMap.get(dto.getId())))
+                .peek(dto -> dto.setConfirmedRequests(confirmedMap.get(dto.getId())))
+                .toList();
     }
 
     private List<EventShortDto> addAdvancedDataToShortDtoList(List<EventShortDto> eventShortDtoList) {
 
         List<Long> idsList = eventShortDtoList.stream().map(EventShortDto::getId).toList();
-        List<Request> requests = requestRepository.findAllByEventIdIn(idsList);
+        HashMap<Long, Long> viewsMap = getEventViews(idsList);
+        HashMap<Long, Long> confirmedMap = getEventConfirmedRequestsCount(idsList);
 
-        List<CommentDto> comments = commentRepository.findAllByEventIdInAndStatus(idsList, CommentStatus.PUBLISHED)
-                .stream()
-                .map(commentMapper::toDto)
+        return eventShortDtoList.stream()
+                .peek(dto -> dto.setViews(viewsMap.get(dto.getId())))
+                .peek(dto -> dto.setConfirmedRequests(confirmedMap.get(dto.getId())))
                 .toList();
-
-        List<String> uris = eventShortDtoList.stream().map(dto -> "/events/" + dto.getId()).toList();
-        List<ViewStats> viewStats = statClient.getStats(LocalDateTime.now().minusYears(1), LocalDateTime.now(), uris, false);
-
-        List<EventShortDto> changedList = eventShortDtoList.stream()
-                .peek(dto -> dto.setConfirmedRequests(requests.stream()
-                        .filter(r -> Objects.equals(r.getEvent().getId(), dto.getId()))
-                        .count()))
-                .peek(dto -> dto.setViews(viewStats.stream()
-                        .filter(v -> v.getUri().equals("/events/" + dto.getId()))
-                        .map(ViewStats::getHits)
-                        .reduce(0L, Long::sum)))
-                .toList();
-
-        return changedList;
     }
 }
