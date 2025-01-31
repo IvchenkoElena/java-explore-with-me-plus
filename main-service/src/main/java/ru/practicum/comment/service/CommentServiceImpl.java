@@ -21,7 +21,6 @@ import ru.practicum.request.repository.RequestRepository;
 import ru.practicum.user.model.User;
 import ru.practicum.user.repository.UserRepository;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -44,8 +43,8 @@ public class CommentServiceImpl implements CommentService {
         if (authorId == event.getInitiator().getId()) {
             throw new OperationForbiddenException("Инициатор мероприятия не может оставлять комментарии к нему");
         }
-        if (!event.getState().equals(EventState.PUBLISHED) || !event.getEventDate().isBefore(LocalDateTime.now())) {
-            throw new OperationForbiddenException("Мероприятие должно быть опубликовано, а дата его проведения в прошлом");
+        if (!event.getState().equals(EventState.PUBLISHED)) {
+            throw new OperationForbiddenException("Мероприятие должно быть опубликовано");
         }
         if (requestRepository.findByRequesterIdAndEventIdAndStatus(authorId, eventId, RequestStatus.CONFIRMED).isEmpty()) {
             throw new OperationForbiddenException("Комментарии может оставлять только подтвержденный участник мероприятия");
