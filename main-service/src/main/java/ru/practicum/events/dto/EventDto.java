@@ -2,8 +2,11 @@ package ru.practicum.events.dto;
 
 import lombok.Data;
 import ru.practicum.category.dto.CategoryDto;
+import ru.practicum.comment.dto.CommentDto;
 import ru.practicum.events.model.EventState;
 import ru.practicum.user.dto.UserShortDto;
+
+import java.util.List;
 
 @Data
 public class EventDto {
@@ -28,4 +31,6 @@ public class EventDto {
     private String eventDate;
     private String createdOn;
     private String publishedOn;
+
+    private List<CommentDto> comments;
 }
